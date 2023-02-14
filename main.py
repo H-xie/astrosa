@@ -9,4 +9,5 @@ plan = Plan(1)
 
 plan.data = s
 
-print(plan.is_valid())
+if plan.is_valid():
+    print(f'plan is valid')

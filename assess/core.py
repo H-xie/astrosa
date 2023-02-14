@@ -2,10 +2,31 @@
 # @Time    : 2023-02-01 001 21:59
 # @Author  : H-XIE
 
-from astroplan import FixedTarget
+import astropy.units as u
+from astroplan import FixedTarget as aspFixedTarget
+from astroplan import Target as aspTarget
 from astropy.time import Time
 
-import astropy.units as u
+from abc import ABCMeta
+
+
+class Target(aspTarget):
+    """
+    Abstract base class for target objects.
+    因为 `astroplan` 提供的Target没有比较功能，所以我需要给他添加个
+    `__eq__` 方法
+    """
+    __metaclass__ = ABCMeta
+
+    def __eq__(self, other):
+        if self.ra == other.ra and self.dec == other.dec:
+            return True
+
+
+class FixedTarget(Target, aspFixedTarget):
+    pass
+
+
 class Shot(object):
 
     def __init__(self, target: FixedTarget, start_time: Time, end_time=Time):
@@ -14,7 +35,7 @@ class Shot(object):
 
     @property
     def target(self):
-        return self.target
+        return self.__target
 
     @property
     def start_time(self):
