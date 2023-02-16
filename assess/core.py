@@ -9,6 +9,7 @@ from astropy.time import Time
 
 from abc import ABCMeta
 
+from .weather import Weather
 
 class Target(aspTarget):
     """
@@ -99,3 +100,7 @@ class Plan(object):
                     return False
 
             return True
+
+    def run(self, weather: Weather):
+
+
