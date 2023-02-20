@@ -8,13 +8,13 @@ from astroplan import FixedTarget as aspFixedTarget
 from astroplan import Target as aspTarget
 from astropy.time import Time
 
-from abc import ABCMeta
+from abc import ABCMeta, ABC
 
 from .weather import Weather
 from .scheduler import Scheduler
 
 
-class Target(aspTarget):
+class Target(aspTarget, ABC):
     """
     Abstract base class for target objects.
     因为 `astroplan` 提供的Target没有比较功能，所以我需要给他添加个
