@@ -3,3 +3,4 @@
 # @Author  : H-XIE
 
 from .core import *
+from .weather import *

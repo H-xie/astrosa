@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023-02-01 001 21:59
 # @Author  : H-XIE
+from logging import warn, warning
 
 import astropy.units as u
 from astroplan import FixedTarget as aspFixedTarget
@@ -10,6 +11,8 @@ from astropy.time import Time
 from abc import ABCMeta
 
 from .weather import Weather
+from .scheduler import Scheduler
+
 
 class Target(aspTarget):
     """
@@ -101,6 +104,57 @@ class Plan(object):
 
             return True
 
-    def run(self, weather: Weather):
 
+class Ossaf(object):
+    """ 评估器
+            用的时候就是它了，创建一个就好。配置上：
+            1. weather 记录
+            2. day 观测日
+            3. scheduler.py 调度器（动态）
+            4. plan 观测计划序列（静态）
 
+            """
+
+    def __init__(self,
+                 day: Time,
+                 observer,
+                 plan: Plan = None,
+                 scheduler: Scheduler = None,
+                 weather: Weather = None):
+        assert (plan is not None) or (scheduler is not None), \
+            f"plan is for static observation, scheduler is for dynamic observation. Either should provide"
+
+        if scheduler is not None and weather is None:
+            warning('No weather is set, scheduler will run as free')
+
+        self.day = day
+        self.site = observer
+        self.plan = plan
+        self.scheduler = scheduler
+        self.weather = weather
+
+        # result metric 是一个字典，key 是度量的名称，value 是度量的值
+        self.result = None
+
+    def run_static_list(self):
+        pass
+
+    def run_list_with_scheduler(self):
+        """
+        result is in `self.result`
+        :return:
+        """
+        pass
+
+    def run(self):
+
+        # get static list if not None
+        if self.plan is not None:
+            pre_list = self.plan.data
+
+        if self.scheduler is None:
+            self.run_static_list()
+        else:
+            self.run_list_with_scheduler()
+
+        return self.result
