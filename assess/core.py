@@ -80,7 +80,7 @@ class Plan:
         assert (self.nDays == 1) or (self.nDays > 1) and (len(self.table) == self.nDays)
 
     @property
-    def slew(self):
+    def slew_time(self):
         # TODO 计算指向耗时
         return 0 * u.second
 
@@ -93,7 +93,7 @@ class Plan:
         else:
             end = None
             for shot in self.data:
-                if (end is not None) and shot.start_time - end > self.slew:
+                if (end is not None) and shot.start_time - end > self.slew_time:
                     end = shot.end_time
 
                 elif end is None:
