@@ -31,7 +31,7 @@ class FixedTarget(Target, aspFixedTarget):
     pass
 
 
-class Shot(object):
+class Shot:
 
     def __init__(self, target: FixedTarget, start_time: Time, end_time=Time):
         self.__target = target
@@ -50,7 +50,7 @@ class Shot(object):
         return self.time[1]
 
 
-class Plan(object):
+class Plan:
     """
     计算得到的观测序列
     可以是一晚的，也可以是连续多晚的，也可以是不连续的多个晚上。
@@ -105,7 +105,7 @@ class Plan(object):
             return True
 
 
-class Ossaf(object):
+class Ossaf:
     """ 评估器
             用的时候就是它了，创建一个就好。配置上：
             1. weather 记录

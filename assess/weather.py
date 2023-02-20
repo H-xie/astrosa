@@ -12,7 +12,7 @@ from astropy.time import Time
 import pandas as pd
 
 
-class Cloud(object):
+class Cloud:
     def __init__(self, data: pd.DataFrame):
         self.data = data
 
@@ -20,7 +20,7 @@ class Cloud(object):
         return self.data.at[item, "cloud"]
 
 
-class Weather(object):
+class Weather:
     """一个时刻的天气情况
     """
 
