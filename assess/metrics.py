@@ -26,5 +26,8 @@ class DataQuality(Metric):
     def __init__(self):
         pass
 
-class ScientifcValue(Metric)
+class ScientifcValue(Metric):
+
+    def __init__(self):
+        pass
 
