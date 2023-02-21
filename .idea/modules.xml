@@ -4,7 +4,6 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/OSSAF.iml" filepath="$PROJECT_DIR$/.idea/OSSAF.iml" />
       <module fileurl="file://$PROJECT_DIR$/../astroplan/.idea/astroplan.iml" filepath="$PROJECT_DIR$/../astroplan/.idea/astroplan.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../healpy/.idea/healpy.iml" filepath="$PROJECT_DIR$/../healpy/.idea/healpy.iml" />
     </modules>
   </component>
 </project>

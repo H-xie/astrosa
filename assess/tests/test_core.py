@@ -38,7 +38,7 @@ class TestOssaf(TestCase):
         s.append(Shot(FixedTarget.from_name('Vega'), Time('2023-01-01 16:02:00'), Time('2023-01-01 16:03:00')))
         s.append(Shot(FixedTarget.from_name('Vega'), Time('2023-01-01 16:06:00'), Time('2023-01-01 16:07:00')))
 
-        plan = Plan(1)
+        plan = Plan()
 
         plan.data = s
 
@@ -48,6 +48,6 @@ class TestOssaf(TestCase):
         weather = Weather(time, cloud)
         observer = astroplan.Observer.at_site("BAO")
 
-        ossaf = Ossaf(time, observer, plan, scheduler, weather)
+        ossaf = Ossaf(observer, plan, scheduler, weather)
 
         self.assertIsNotNone(ossaf)

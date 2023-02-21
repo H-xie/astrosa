@@ -61,8 +61,7 @@ class Plan:
     else use `self.data`
     """
 
-    def __init__(self, nDays):
-        self.nDays = nDays
+    def __init__(self):
         self.table = None
         self.__data = None
 
@@ -77,8 +76,6 @@ class Plan:
     def check(self):
         assert (self.table is not None) or (self.__data is not None)
 
-        assert (self.nDays == 1) or (self.nDays > 1) and (len(self.table) == self.nDays)
-
     @property
     def slew_time(self):
         # TODO 计算指向耗时
@@ -87,22 +84,18 @@ class Plan:
     def is_valid(self):
         self.check()
 
-        if self.nDays > 1:
-            for p in self.table:
-                p.isValid()
-        else:
-            end = None
-            for shot in self.data:
-                if (end is not None) and shot.start_time - end > self.slew_time:
-                    end = shot.end_time
+        end = None
+        for shot in self.data:
+            if (end is not None) and shot.start_time - end > self.slew_time:
+                end = shot.end_time
 
-                elif end is None:
-                    end = shot.end_time
-                else:
-                    print(f'{shot.start_time} is too early')
-                    return False
+            elif end is None:
+                end = shot.end_time
+            else:
+                print(f'{shot.start_time} is too early')
+                return False
 
-            return True
+        return True
 
 
 class Ossaf:
@@ -116,7 +109,6 @@ class Ossaf:
             """
 
     def __init__(self,
-                 day: Time,
                  observer,
                  plan: Plan = None,
                  scheduler: Scheduler = None,
@@ -127,7 +119,6 @@ class Ossaf:
         if scheduler is not None and weather is None:
             warning('No weather is set, scheduler will run as free')
 
-        self.day = day
         self.site = observer
         self.plan = plan
         self.scheduler = scheduler

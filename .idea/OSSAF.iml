@@ -7,6 +7,5 @@
     <orderEntry type="jdk" jdkName="ossaf" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="astroplan" />
-    <orderEntry type="module" module-name="healpy" />
   </component>
 </module>
