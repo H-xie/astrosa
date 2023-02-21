@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import healpy as hp
+from astropy.time import Time
+import astropy.units as u
 
 # create a zone
 nside = 4 ** 2
@@ -12,12 +14,17 @@ print(npix)
 # set random cloud
 # cloud is (0,1) means the thickness
 
-cloud = np.random.random(npix)
-print(cloud)
+ntime_tic = 1000 # every minute
+
+cloud = np.random.random([ ntime_tic,npix])
+print(cloud.shape)
 
 # create data frame
 
-data = {"healpix_idx": range(npix),
-        "cloud": cloud}
-df_cloud = pd.DataFrame(data)
-df_cloud.to_json("assess/test/data/cloud.json")
+start_time = Time("2023-01-01 19:00:00")
+datetime_list = [start_time + i*u.minute for i in range(ntime_tic)]
+
+
+df_cloud = pd.DataFrame(cloud,index=datetime_list, columns=range(npix))
+df_cloud.to_json("assess/tests/data/cloud.json")
+
