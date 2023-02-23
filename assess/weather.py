@@ -45,7 +45,7 @@ class Cloud:
 2023-01-02 11:36:00.000  0.518966  0.734740  ...  0.274434  0.020305
     """
 
-    def __init__(self,data):
+    def __init__(self, data):
         self._data = data
 
     @property
@@ -60,7 +60,7 @@ class Weather:
     """一个时刻的天气情况
     """
 
-    def __init__(self, cloud:Cloud):
+    def __init__(self, cloud: Cloud):
         """cloud is in index of healpix_idx
         """
         self._cloud = cloud

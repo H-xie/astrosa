@@ -1,17 +1,25 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023-02-01 001 21:59
 # @Author  : H-XIE
-from logging import warn, warning
+from abc import ABCMeta, ABC
+from logging import warning
 
 import astropy.units as u
+import numpy as np
+from astropy.time import Time
+from astropy.coordinates import AltAz
+
 from astroplan import FixedTarget as aspFixedTarget
 from astroplan import Target as aspTarget
-from astropy.time import Time
-
-from abc import ABCMeta, ABC
-
-from .weather import Weather
 from .scheduler import Scheduler
+from .weather import Weather
+
+from healpy import ang2pix
+from .const import NSIDE
+
+from astropy.coordinates import SkyCoord
+
+from .metrics import *
 
 
 class Target(aspTarget, ABC):
@@ -119,7 +127,7 @@ class Ossaf:
         if scheduler is not None and weather is None:
             warning('No weather is set, scheduler will run as free')
 
-        self.site = observer
+        self.observer = observer
         self.plan = plan
         self.scheduler = scheduler
         self.weather = weather
@@ -128,7 +136,39 @@ class Ossaf:
         self.result = None
 
     def run_static_list(self):
-        pass
+        print("static list runner")
+
+        whole_score = list()
+        # plan 是有序的
+        for shot in self.plan.data:
+            target = shot.target
+
+            # 假设曝光时间很短, 望远镜的指向变化很小, 只计算开始和结束位置的云.
+            obstime = Time([shot.start_time, shot.end_time])
+            altaz_frame = AltAz(obstime=obstime, location=self.observer.location)
+
+            # 赤道坐标系👉地平坐标系👉healpix 编码
+            altaz_target = target.coord.transform_to(altaz_frame)
+            theta = np.pi / 2 - np.deg2rad(altaz_target.alt).value  # 维度, 高度角
+            phi = np.deg2rad(altaz_target.az).value  # 经度, 方向角
+            hindex = ang2pix(nside=NSIDE, theta=theta, phi=phi)
+
+            # 天气如何? 得分如何?
+            cloud = list()
+            score = list()
+            for i in range(2):
+                cc = self.weather.cloud[obstime[i].to_datetime(), hindex[i]]
+                cloud.append(cc)
+
+                score.append(DataQuality.from_cloud(cc))
+
+            score = np.mean(score)
+            print(cloud, f"score = {score}")
+
+
+            whole_score.append(score)
+
+        return whole_score
 
     def run_list_with_scheduler(self):
         """

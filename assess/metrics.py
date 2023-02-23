@@ -28,6 +28,10 @@ class DataQuality(Metric):
     def __init__(self):
         pass
 
+    @classmethod
+    def from_cloud(cls, cloud):
+        return 1 - cloud
+
 
 class ScientifcValue(Metric):
 
