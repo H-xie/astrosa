@@ -165,7 +165,6 @@ class Ossaf:
             score = np.mean(score)
             print(cloud, f"score = {score}")
 
-
             whole_score.append(score)
 
         return whole_score
@@ -184,8 +183,8 @@ class Ossaf:
             pre_list = self.plan.data
 
         if self.scheduler is None:
-            self.run_static_list()
+            self.result = self.run_static_list()
         else:
-            self.run_list_with_scheduler()
+            self.result = self.run_list_with_scheduler()
 
         return self.result

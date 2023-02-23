@@ -26,4 +26,6 @@ ossaf = Ossaf(observer, plan, None, weather)
 
 result = ossaf.run()
 
+print(result)
+
 print("end")
