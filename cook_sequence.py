@@ -3,10 +3,10 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.time import Time
+from rich.progress import Progress
 
 from astroplan import Observer, AirmassConstraint, AtNightConstraint, Transitioner, SequentialScheduler, Schedule, \
-    TimeConstraint, Target, ObservingBlock, FixedTarget
-from rich.progress import Progress, track
+    TimeConstraint, ObservingBlock, FixedTarget
 
 observer = Observer.at_site('BAO')
 day = Time('2023-01-01')
@@ -140,6 +140,7 @@ def pick_target():
     #     else:
     #         print(f'{star.name} cannot be seen.')
 
+
 def get_rise_time():
     chunksize = 100
     f = open('tyc2-rise-BAO.json', 'a')
@@ -155,29 +156,77 @@ def get_rise_time():
 
                 chunk['rise_time'] = observer.target_rise_time(obs_start, star, which='next').to_value('iso')
 
-
                 chunk.to_json(f, orient='records', lines=True)
 
                 progress.update(task, advance=1)
                 # break
 
-# 判断是否在天亮前升起.
-chunksize = 1000000
-visible_star = pd.DataFrame()
-with Progress() as progress:
-    task = progress.add_task("find visible target", total=N_target / chunksize)
 
-    with pd.read_json('assess/tests/data/tyc2-rise.1791042.json', lines=True, chunksize=chunksize) as reader:
-        for chunk in reader:
-            vt = chunk[chunk['rise_time'].values < obs_end]
+def get_visible_stars():
+    # 判断是否在天亮前升起.
+    chunksize = 1000000
+    visible_star = pd.DataFrame()
+    with Progress() as progress:
+        task = progress.add_task("find visible target", total=N_target / chunksize)
 
-            if len(visible_star) ==0:
-                visible_star = vt
-            else:
-                visible_star= pd.concat([visible_star, vt])
+        with pd.read_json('assess/tests/data/tyc2-rise.1791042.json', lines=True, chunksize=chunksize) as reader:
+            for chunk in reader:
+                vt = chunk[chunk['rise_time'].values < obs_end]
 
-            progress.update(task, advance=1)
+                if len(visible_star) == 0:
+                    visible_star = vt
+                else:
+                    visible_star = pd.concat([visible_star, vt])
 
-            # break
+                progress.update(task, advance=1)
 
-visible_star.to_json('tycho2-visible.864935.json', orient='records', lines=True)
+                # break
+
+    visible_star.to_json('tycho2-visible.864935.json', orient='records', lines=True)
+
+
+# make schedule
+def df2Targets(df: pd.DataFrame):
+    coord = SkyCoord(ra=df['_RAJ2000'] * u.deg,
+                     dec=df['_DEJ2000'] * u.deg)
+
+    star = FixedTarget(coord=coord, name=df['tyc2-id'])
+
+    return star
+
+
+blocks = []
+chunksize = 100
+
+progress = Progress()
+task = progress.add_task("find visible target", total=864935 / chunksize)
+
+with pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True, chunksize=chunksize) as reader:
+    for chunk in reader:
+        for index, star in chunk.iterrows():
+            star_target = df2Targets(star)
+
+            b = ObservingBlock(star_target, 3 * u.min, 1)
+
+            blocks.append(b)
+
+    # create the list of constraints that all targets must satisfy
+    global_constraints = [AirmassConstraint(max=3, boolean_constraint=False),
+                          AtNightConstraint.twilight_civil()]
+
+    slew_rate = .8 * u.deg / u.second
+    transitioner = Transitioner(slew_rate,
+                                {'filter': {('B', 'G'): 10 * u.second,
+                                            ('G', 'R'): 10 * u.second,
+                                            'default': 30 * u.second}})
+
+    # Initialize the sequential scheduler with the constraints and transitioner
+    seq_scheduler = SequentialScheduler(constraints=global_constraints,
+                                        observer=observer,
+                                        transitioner=transitioner)
+    # Initialize a Schedule object, to contain the new schedule
+    sequential_schedule = Schedule(obs_start, obs_end)
+
+    seq_scheduler(blocks, sequential_schedule)
+
+    progress.update(task, advance=1)
