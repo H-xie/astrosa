@@ -198,35 +198,39 @@ def df2Targets(df: pd.DataFrame):
 blocks = []
 chunksize = 100
 
-progress = Progress()
-task = progress.add_task("find visible target", total=864935 / chunksize)
+with Progress() as progress:
+    task = progress.add_task("create observing block", total=864935)
 
-with pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True, chunksize=chunksize) as reader:
-    for chunk in reader:
-        for index, star in chunk.iterrows():
-            star_target = df2Targets(star)
+    with pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True, chunksize=chunksize) as reader:
+        for chunk in reader:
+            for index, star in chunk.iterrows():
+                star_target = df2Targets(star)
 
-            b = ObservingBlock(star_target, 3 * u.min, 1)
+                b = ObservingBlock(star_target, 3 * u.min, 1)
 
-            blocks.append(b)
+                blocks.append(b)
 
-    # create the list of constraints that all targets must satisfy
-    global_constraints = [AirmassConstraint(max=3, boolean_constraint=False),
-                          AtNightConstraint.twilight_civil()]
+            progress.update(task, advance=1)
 
-    slew_rate = .8 * u.deg / u.second
-    transitioner = Transitioner(slew_rate,
-                                {'filter': {('B', 'G'): 10 * u.second,
-                                            ('G', 'R'): 10 * u.second,
-                                            'default': 30 * u.second}})
 
-    # Initialize the sequential scheduler with the constraints and transitioner
-    seq_scheduler = SequentialScheduler(constraints=global_constraints,
-                                        observer=observer,
-                                        transitioner=transitioner)
-    # Initialize a Schedule object, to contain the new schedule
-    sequential_schedule = Schedule(obs_start, obs_end)
+# create the list of constraints that all targets must satisfy
+global_constraints = [AirmassConstraint(max=3, boolean_constraint=False),
+                      AtNightConstraint.twilight_civil()]
 
-    seq_scheduler(blocks, sequential_schedule)
+slew_rate = .8 * u.deg / u.second
+transitioner = Transitioner(slew_rate,
+                            {'filter': {('B', 'G'): 10 * u.second,
+                                        ('G', 'R'): 10 * u.second,
+                                        'default': 30 * u.second}})
 
-    progress.update(task, advance=1)
+# Initialize the sequential scheduler with the constraints and transitioner
+seq_scheduler = SequentialScheduler(constraints=global_constraints,
+                                    observer=observer,
+                                    transitioner=transitioner)
+# Initialize a Schedule object, to contain the new schedule
+sequential_schedule = Schedule(obs_start, obs_end)
+
+seq_scheduler(blocks, sequential_schedule)
+
+
+sequential_schedule.to_table()
