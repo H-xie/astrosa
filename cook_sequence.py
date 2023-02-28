@@ -6,7 +6,7 @@ from astropy.time import Time
 from rich.progress import Progress
 
 from astroplan import Observer, AirmassConstraint, AtNightConstraint, Transitioner, SequentialScheduler, Schedule, \
-    TimeConstraint, ObservingBlock, FixedTarget
+    TimeConstraint, ObservingBlock, FixedTarget, PriorityScheduler
 
 observer = Observer.at_site('BAO')
 day = Time('2023-01-01')
@@ -195,23 +195,23 @@ def df2Targets(df: pd.DataFrame):
     return star
 
 
+NCandidate = 300
 blocks = []
-chunksize = 100
+tyc2_visible = pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True)
+
+tyc2_visible_sample = tyc2_visible.sample(NCandidate)
 
 with Progress() as progress:
-    task = progress.add_task("create observing block", total=864935)
+    task = progress.add_task('[yellow]Making observing blocks', total=NCandidate)
+    for index, star in tyc2_visible_sample.iterrows():
+        star_target = df2Targets(star)
 
-    with pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True, chunksize=chunksize) as reader:
-        for chunk in reader:
-            for index, star in chunk.iterrows():
-                star_target = df2Targets(star)
+        b = ObservingBlock(star_target, 3 * u.min, 1)
 
-                b = ObservingBlock(star_target, 3 * u.min, 1)
+        blocks.append(b)
+        progress.update(task, advance=1)
 
-                blocks.append(b)
-
-            progress.update(task, advance=1)
-
+print('block making completed.')
 
 # create the list of constraints that all targets must satisfy
 global_constraints = [AirmassConstraint(max=3, boolean_constraint=False),
@@ -223,14 +223,45 @@ transitioner = Transitioner(slew_rate,
                                         ('G', 'R'): 10 * u.second,
                                         'default': 30 * u.second}})
 
-# Initialize the sequential scheduler with the constraints and transitioner
-seq_scheduler = SequentialScheduler(constraints=global_constraints,
-                                    observer=observer,
-                                    transitioner=transitioner)
-# Initialize a Schedule object, to contain the new schedule
-sequential_schedule = Schedule(obs_start, obs_end)
+scheduler = PriorityScheduler(constraints=global_constraints,
+                              observer=observer,
+                              transitioner=transitioner)
+schedule = Schedule(obs_start, obs_end)
 
-seq_scheduler(blocks, sequential_schedule)
+scheduler(blocks, schedule)
 
+schedule.to_table()
 
-sequential_schedule.to_table()
+from astroplan.plots import plot_schedule_airmass
+import matplotlib.pyplot as plt
+
+# plot the schedule with the airmass of the targets
+plt.figure(figsize=(14, 6))
+plot_schedule_airmass(schedule)
+plt.legend(loc="upper right")
+# plt.show()
+
+with Progress() as progress:
+    task = progress.add_task('to file', total=len(schedule.slots))
+
+    schedule_df = pd.DataFrame(columns=['target', 'start', 'end',
+                                        'duration', 'ra', 'dec', 'configuration'])
+
+    for slot in schedule.slots:
+        progress.update(task, advance=1)
+        if hasattr(slot.block, 'target'):
+            start_times = slot.start.iso
+            end_times = slot.end.iso
+            durations = slot.duration.to(u.minute).value
+            target_names = slot.block.target.name
+            ra = slot.block.target.ra.value
+            dec = slot.block.target.dec.value
+            config = slot.block.configuration
+        else:
+            continue
+
+        tmp = pd.Series([target_names, start_times, end_times, durations, ra, dec, config],
+                        index=['target', 'start', 'end', 'duration', 'ra', 'dec', 'configuration'])
+        schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
+
+schedule_df.to_json(f'schedule_{len(schedule_df)}of{NCandidate}.json', orient='records')
