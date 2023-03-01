@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023-02-02 002 12:47
-# @Author  : H-XIE
+# @Author  : HH-XIE
 from unittest import TestCase
 
 import astroplan

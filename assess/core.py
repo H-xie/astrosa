@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023-02-01 001 21:59
-# @Author  : H-XIE
+# @Author  : HH-XIE
 from abc import ABCMeta, ABC
 from logging import warning
 
@@ -11,10 +11,11 @@ from astropy.coordinates import AltAz
 
 from astroplan import FixedTarget as aspFixedTarget
 from astroplan import Target as aspTarget
+from healpix import HH
 from .scheduler import Scheduler
 from .weather import Weather
 
-from healpy import ang2pix
+# from healpy import ang2pix
 from .const import NSIDE
 
 from astropy.coordinates import SkyCoord
@@ -149,9 +150,7 @@ class Ossaf:
 
             # 赤道坐标系👉地平坐标系👉healpix 编码
             altaz_target = target.coord.transform_to(altaz_frame)
-            theta = np.pi / 2 - np.deg2rad(altaz_target.alt).value  # 维度, 高度角
-            phi = np.deg2rad(altaz_target.az).value  # 经度, 方向角
-            hindex = ang2pix(nside=NSIDE, theta=theta, phi=phi)
+            hindex = HH.ang2pix(nside=NSIDE, lon=altaz_target.az, lat=altaz_target.alt)
 
             # 天气如何? 得分如何?
             cloud = list()
