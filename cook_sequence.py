@@ -1,12 +1,14 @@
+import matplotlib.pyplot as plt
 import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.time import Time
-from rich.progress import Progress, track, TimeElapsedColumn, SpinnerColumn
+from rich.progress import Progress, TimeElapsedColumn
 
 from astroplan import Observer, AirmassConstraint, AtNightConstraint, Transitioner, SequentialScheduler, Schedule, \
     TimeConstraint, ObservingBlock, FixedTarget, PriorityScheduler
+from astroplan.plots import plot_schedule_airmass
 
 observer = Observer.at_site('BAO')
 day = Time('2023-01-01')
@@ -195,7 +197,7 @@ progress = Progress(
     TimeElapsedColumn()
 )
 
-NCandidate = 300
+NCandidate = 5
 blocks = []
 tyc2_visible = pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True)
 
@@ -234,9 +236,6 @@ scheduler(blocks, schedule)
 
 schedule.to_table()
 
-from astroplan.plots import plot_schedule_airmass
-import matplotlib.pyplot as plt
-
 # plot the schedule with the airmass of the targets
 plt.figure(figsize=(14, 6))
 plot_schedule_airmass(schedule)
@@ -246,8 +245,7 @@ plt.legend(loc="upper right")
 with progress:
     task = progress.add_task('to file', total=len(schedule.slots))
 
-    schedule_df = pd.DataFrame(columns=['target', 'start', 'end',
-                                        'duration', 'ra', 'dec', 'configuration'])
+    schedule_df = pd.DataFrame(columns=['tyc2-id', 'start', 'end', 'duration', 'ra', 'dec', 'VTmag', 'configuration'])
 
     for slot in schedule.slots:
         progress.update(task, advance=1)
@@ -259,11 +257,12 @@ with progress:
             ra = slot.block.target.ra.value
             dec = slot.block.target.dec.value
             config = slot.block.configuration
+            vt_mag = tyc2_visible_sample[tyc2_visible_sample['tyc2-id'] == target_names]['VTmag'].values[0]
         else:
             continue
 
-        tmp = pd.Series([target_names, start_times, end_times, durations, ra, dec, config],
-                        index=['target', 'start', 'end', 'duration', 'ra', 'dec', 'configuration'])
+        tmp = pd.Series([target_names, start_times, end_times, durations, ra, dec, vt_mag, config],
+                        index=['tyc2-id', 'start', 'end', 'duration', 'ra', 'dec', 'VTmag', 'configuration'])
         schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
 progress.remove_task(task)
 
