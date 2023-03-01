@@ -197,7 +197,7 @@ progress = Progress(
     TimeElapsedColumn()
 )
 
-NCandidate = 5
+NCandidate = 300
 blocks = []
 tyc2_visible = pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True)
 
