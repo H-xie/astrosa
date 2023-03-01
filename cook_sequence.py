@@ -3,7 +3,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.time import Time
-from rich.progress import Progress
+from rich.progress import Progress, track, TimeElapsedColumn, SpinnerColumn
 
 from astroplan import Observer, AirmassConstraint, AtNightConstraint, Transitioner, SequentialScheduler, Schedule, \
     TimeConstraint, ObservingBlock, FixedTarget, PriorityScheduler
@@ -14,11 +14,6 @@ obs_start = observer.twilight_evening_astronomical(time=day, which='next')
 obs_end = observer.twilight_morning_astronomical(time=obs_start, which='next')
 
 N_target = 2539913
-
-
-# tyc2 = pd.read_json('assess/tests/data/tyc2-records.json', lines=True, chunksize=100)
-# N = len(tyc2)
-# print(f'tyc2 has {N} rows')
 
 
 def make_tyc2_json():
@@ -143,7 +138,7 @@ def pick_target():
 
 def get_rise_time():
     chunksize = 100
-    f = open('tyc2-rise-BAO.json', 'a')
+    f = open('assess/tests/data/tyc2-rise-BAO.json', 'a')
     with Progress() as progress:
         task = progress.add_task("create blocks", total=N_target / chunksize)
 
@@ -182,7 +177,7 @@ def get_visible_stars():
 
                 # break
 
-    visible_star.to_json('tycho2-visible.864935.json', orient='records', lines=True)
+    visible_star.to_json('assess/tests/data/tycho2-visible.864935.json', orient='records', lines=True)
 
 
 # make schedule
@@ -195,13 +190,18 @@ def df2Targets(df: pd.DataFrame):
     return star
 
 
+progress = Progress(
+    *Progress.get_default_columns(),
+    TimeElapsedColumn()
+)
+
 NCandidate = 300
 blocks = []
 tyc2_visible = pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True)
 
 tyc2_visible_sample = tyc2_visible.sample(NCandidate)
 
-with Progress() as progress:
+with progress:
     task = progress.add_task('[yellow]Making observing blocks', total=NCandidate)
     for index, star in tyc2_visible_sample.iterrows():
         star_target = df2Targets(star)
@@ -210,6 +210,8 @@ with Progress() as progress:
 
         blocks.append(b)
         progress.update(task, advance=1)
+
+progress.remove_task(task)
 
 print('block making completed.')
 
@@ -241,7 +243,7 @@ plot_schedule_airmass(schedule)
 plt.legend(loc="upper right")
 # plt.show()
 
-with Progress() as progress:
+with progress:
     task = progress.add_task('to file', total=len(schedule.slots))
 
     schedule_df = pd.DataFrame(columns=['target', 'start', 'end',
@@ -263,5 +265,6 @@ with Progress() as progress:
         tmp = pd.Series([target_names, start_times, end_times, durations, ra, dec, config],
                         index=['target', 'start', 'end', 'duration', 'ra', 'dec', 'configuration'])
         schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
+progress.remove_task(task)
 
 schedule_df.to_json(f'schedule_{len(schedule_df)}of{NCandidate}.json', orient='records')
