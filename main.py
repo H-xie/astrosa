@@ -8,11 +8,8 @@ from utils import df2Targets
 
 # create Plan
 s = list()
-s.append(Shot(FixedTarget.from_name('Vega'), Time('2023-01-01 19:00:00'), Time('2023-01-01 19:01:00')))
-s.append(Shot(FixedTarget.from_name('Vega'), Time('2023-01-01 19:02:00'), Time('2023-01-01 19:03:00')))
-s.append(Shot(FixedTarget.from_name('Vega'), Time('2023-01-01 19:06:00'), Time('2023-01-01 19:07:00')))
 
-asp_priority_plan = pd.read_json('assess/tests/data/schedule_140of300.json')
+asp_priority_plan = pd.read_json('assess/tests/data/schedule_129of300.json')
 
 # DataFrame 2 plan
 for _, star in track(asp_priority_plan.iterrows()):
@@ -23,8 +20,8 @@ for _, star in track(asp_priority_plan.iterrows()):
     vt_mag = star['VTmag'] * u.mag
 
     shot = Shot(star_target, start, end)
+    s.append(shot)
 
-    break  # for debug
 
 plan = Plan()
 
@@ -34,7 +31,7 @@ if plan.is_valid():
     print(f'plan is valid')
 
 # create Cloud
-cloud = pd.read_json("assess/tests/data/cloud.json")
+cloud = pd.read_json("assess/tests/data/cloud.json", orient='index')
 weather = Weather(Cloud(cloud))
 observer = astroplan.Observer.at_site("BAO")
 

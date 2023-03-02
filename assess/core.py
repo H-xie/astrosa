@@ -95,7 +95,7 @@ class Plan:
 
         end = None
         for shot in self.data:
-            if (end is not None) and shot.start_time - end > self.slew_time:
+            if (end is not None) and shot.start_time - end >= self.slew_time:
                 end = shot.end_time
 
             elif end is None:
@@ -156,13 +156,13 @@ class Ossaf:
             cloud = list()
             score = list()
             for i in range(2):
-                cc = self.weather.cloud[obstime[i].to_datetime(), hindex[i]]
+                cc = self.weather.cloud[obstime[i].to_value('datetime64', 'date_hm'), hindex[i]]
                 cloud.append(cc)
 
                 score.append(DataQuality.from_cloud(cc))
 
             score = np.mean(score)
-            print(cloud, f"score = {score}")
+            # print(altaz_target, cloud, f"score = {score}")
 
             whole_score.append(score)
 
