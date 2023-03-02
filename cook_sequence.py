@@ -245,7 +245,7 @@ plt.legend(loc="upper right")
 with progress:
     task = progress.add_task('to file', total=len(schedule.slots))
 
-    schedule_df = pd.DataFrame(columns=['tyc2-id', 'start', 'end', 'duration', 'ra', 'dec', 'VTmag', 'configuration'])
+    schedule_df = pd.DataFrame(columns=['tyc2-id', 'start', 'end', 'duration', '_RAJ2000', '_DEJ2000', 'VTmag', 'configuration'])
 
     for slot in schedule.slots:
         progress.update(task, advance=1)
@@ -262,7 +262,7 @@ with progress:
             continue
 
         tmp = pd.Series([target_names, start_times, end_times, durations, ra, dec, vt_mag, config],
-                        index=['tyc2-id', 'start', 'end', 'duration', 'ra', 'dec', 'VTmag', 'configuration'])
+                        index=['tyc2-id', 'start', 'end', 'duration', '_RAJ2000', '_DEJ2000', 'VTmag', 'configuration'])
         schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
 progress.remove_task(task)
 
