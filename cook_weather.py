@@ -5,6 +5,7 @@ import pandas as pd
 from astropy.time import Time
 
 from healpix import HH
+from utils import *
 
 # create a zone
 nside = 4 ** 2
@@ -15,16 +16,17 @@ print(npix)
 
 # set random cloud
 # cloud is (0,1) means the thickness
+start_time = observer.twilight_evening_astronomical(observing_date, 'next').to_value('datetime64', subfmt='date_hm')
+end_time = observer.twilight_morning_astronomical(observing_date, 'next').to_value('datetime64', subfmt='date_hm')
 
-ntime_tic = 1000  # every minute
 
-cloud = np.random.random([ntime_tic, npix])
-print(cloud.shape)
+datetime_list =[]
+iTime = start_time
+while iTime < end_time:
+    datetime_list.append(iTime)
+    iTime += 1*np.timedelta64(1, 'm')
 
-# create data frame
-
-start_time = Time("2023-01-01 19:00:00")
-datetime_list = [start_time + i * u.minute for i in range(ntime_tic)]
+cloud = np.random.random([len(datetime_list), npix])
 
 df_cloud = pd.DataFrame(cloud, index=datetime_list, columns=range(npix))
-df_cloud.to_json("assess/tests/data/cloudx.json")
+df_cloud.to_json("assess/tests/data/cloud.json", date_format='iso', orient='index')

@@ -266,4 +266,11 @@ with progress:
         schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
 progress.remove_task(task)
 
-schedule_df.to_json(f'schedule_{len(schedule_df)}of{NCandidate}.json', orient='records')
+# Indicate dtype
+schedule_df = schedule_df.infer_objects()
+schedule_df['tyc2-id'] = schedule_df['tyc2-id'].astype(str)
+schedule_df['start'] = schedule_df['start'].astype('datetime64')
+schedule_df['end'] = schedule_df['end'].astype('datetime64')
+
+
+schedule_df.to_json(f'schedule_{len(schedule_df)}of{NCandidate}.json', orient='records', date_format='iso')
