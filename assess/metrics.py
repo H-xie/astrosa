@@ -3,6 +3,8 @@ from .core import *
 """ 度量
 各类量化指标是一种度量，
 
+类似 astroplan 的 constrains.py
+
 """
 
 

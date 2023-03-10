@@ -8,9 +8,12 @@ import pandas as pd
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 from astropy.time import Time
+from rich.progress import Progress, TimeElapsedColumn
 
-from assess import FixedTarget
+from astroplan import FixedTarget
+from astroplan import Schedule
 from astroplan.observer import Observer
+
 
 def df2Targets(df: pd.DataFrame):
     coord = SkyCoord(ra=df['_RAJ2000'] * u.deg,
@@ -20,5 +23,55 @@ def df2Targets(df: pd.DataFrame):
 
     return star
 
+
 observer = Observer.at_site('BAO')
 observing_date = Time('2023-01-01')
+
+obs_start = observer.twilight_evening_astronomical(time=observing_date, which='next')
+obs_end = observer.twilight_morning_astronomical(time=obs_start, which='next')
+
+
+def schedule2df(schedule: Schedule):
+    progress = Progress(
+        *Progress.get_default_columns(),
+        TimeElapsedColumn()
+    )
+
+    columns = ['name',
+               'start',
+               'end',
+               '_RAJ2000',
+               '_DEJ2000',
+               'priority',
+               'configuration']
+    with progress:
+        task = progress.add_task('to file', total=len(schedule.slots))
+
+        schedule_df = pd.DataFrame(
+            columns=columns)
+
+        for slot in schedule.slots:
+            progress.update(task, advance=1)
+            if hasattr(slot.block, 'target'):
+                start_times = slot.start.iso
+                end_times = slot.end.iso
+                target_names = slot.block.target.name
+                ra = slot.block.target.ra.value
+                dec = slot.block.target.dec.value
+                config = slot.block.configuration
+                priority = slot.block.priority
+            else:
+                continue
+
+            tmp = pd.Series([target_names, start_times, end_times, ra, dec, priority, config],
+                            index=columns
+                            )
+            schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
+    schedule_df = schedule_df.infer_objects()
+    schedule_df['name'] = schedule_df['name'].astype(str)
+    schedule_df['start'] = schedule_df['start'].astype('datetime64')
+    schedule_df['end'] = schedule_df['end'].astype('datetime64')
+
+    schedule_df = schedule_df.sort_values('start')
+
+    return schedule_df

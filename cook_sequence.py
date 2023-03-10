@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -9,6 +10,7 @@ from rich.progress import Progress, TimeElapsedColumn
 from astroplan import Observer, AirmassConstraint, AtNightConstraint, Transitioner, SequentialScheduler, Schedule, \
     TimeConstraint, ObservingBlock, FixedTarget, PriorityScheduler
 from astroplan.plots import plot_schedule_airmass
+from utils import schedule2df, df2Targets
 
 observer = Observer.at_site('BAO')
 day = Time('2023-01-01')
@@ -183,15 +185,6 @@ def get_visible_stars():
 
 
 # make schedule
-def df2Targets(df: pd.DataFrame):
-    coord = SkyCoord(ra=df['_RAJ2000'] * u.deg,
-                     dec=df['_DEJ2000'] * u.deg)
-
-    star = FixedTarget(coord=coord, name=df['tyc2-id'])
-
-    return star
-
-
 progress = Progress(
     *Progress.get_default_columns(),
     TimeElapsedColumn()
@@ -208,7 +201,7 @@ with progress:
     for index, star in tyc2_visible_sample.iterrows():
         star_target = df2Targets(star)
 
-        b = ObservingBlock(star_target, 3 * u.min, 1)
+        b = ObservingBlock(star_target, 3 * u.min, np.random.randint(1, 5))
 
         blocks.append(b)
         progress.update(task, advance=1)
@@ -240,37 +233,7 @@ schedule.to_table()
 plt.figure(figsize=(14, 6))
 plot_schedule_airmass(schedule)
 plt.legend(loc="upper right")
-# plt.show()
+plt.show()
 
-with progress:
-    task = progress.add_task('to file', total=len(schedule.slots))
-
-    schedule_df = pd.DataFrame(columns=['tyc2-id', 'start', 'end', 'duration', '_RAJ2000', '_DEJ2000', 'VTmag', 'configuration'])
-
-    for slot in schedule.slots:
-        progress.update(task, advance=1)
-        if hasattr(slot.block, 'target'):
-            start_times = slot.start.iso
-            end_times = slot.end.iso
-            durations = slot.duration.to(u.minute).value
-            target_names = slot.block.target.name
-            ra = slot.block.target.ra.value
-            dec = slot.block.target.dec.value
-            config = slot.block.configuration
-            vt_mag = tyc2_visible_sample[tyc2_visible_sample['tyc2-id'] == target_names]['VTmag'].values[0]
-        else:
-            continue
-
-        tmp = pd.Series([target_names, start_times, end_times, durations, ra, dec, vt_mag, config],
-                        index=['tyc2-id', 'start', 'end', 'duration', '_RAJ2000', '_DEJ2000', 'VTmag', 'configuration'])
-        schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
-progress.remove_task(task)
-
-# Indicate dtype
-schedule_df = schedule_df.infer_objects()
-schedule_df['tyc2-id'] = schedule_df['tyc2-id'].astype(str)
-schedule_df['start'] = schedule_df['start'].astype('datetime64')
-schedule_df['end'] = schedule_df['end'].astype('datetime64')
-
-
+schedule_df = schedule2df(schedule)
 schedule_df.to_json(f'schedule_{len(schedule_df)}of{NCandidate}.json', orient='records', date_format='iso')

@@ -6,6 +6,7 @@ from logging import warning
 
 import astropy.units as u
 import numpy as np
+import pandas as pd
 from astropy.time import Time
 from astropy.coordinates import AltAz
 
@@ -40,25 +41,6 @@ class FixedTarget(Target, aspFixedTarget):
     pass
 
 
-class Shot:
-
-    def __init__(self, target: FixedTarget, start_time: Time, end_time=Time):
-        self.__target = target
-        self.time = [start_time, end_time]
-
-    @property
-    def target(self):
-        return self.__target
-
-    @property
-    def start_time(self):
-        return self.time[0]
-
-    @property
-    def end_time(self):
-        return self.time[1]
-
-
 class Plan:
     """
     计算得到的观测序列
@@ -70,41 +52,24 @@ class Plan:
     else use `self.data`
     """
 
-    def __init__(self):
-        self.table = None
-        self.__data = None
+    def __init__(self, data: pd.DataFrame):
 
-    @property
-    def data(self):
-        return self.__data
+        # check data format
+        DATA_COLUMNS = ['id', 'ra', 'dec', 'start_time', 'end_time', 'priority']
+        for c in DATA_COLUMNS:
+            if c in data.columns:
+                pass
+            else:
+                raise ValueError(c, ' is not exist in data: pd.DataFrame.',
+                                 data.columns)
 
-    @data.setter
-    def data(self, val):
-        self.__data = val
-
-    def check(self):
-        assert (self.table is not None) or (self.__data is not None)
+        # save to member
+        self.data = data
 
     @property
     def slew_time(self):
         # TODO 计算指向耗时
         return 0 * u.second
-
-    def is_valid(self):
-        self.check()
-
-        end = None
-        for shot in self.data:
-            if (end is not None) and shot.start_time - end >= self.slew_time:
-                end = shot.end_time
-
-            elif end is None:
-                end = shot.end_time
-            else:
-                print(f'{shot.start_time} is too early')
-                return False
-
-        return True
 
 
 class Ossaf:
@@ -121,7 +86,8 @@ class Ossaf:
                  observer,
                  plan: Plan = None,
                  scheduler: Scheduler = None,
-                 weather: Weather = None):
+                 weather: Weather = None,
+                 **kwargs):
         assert (plan is not None) or (scheduler is not None), \
             f"plan is for static observation, scheduler is for dynamic observation. Either should provide"
 
@@ -136,16 +102,30 @@ class Ossaf:
         # result metric 是一个字典，key 是度量的名称，value 是度量的值
         self.result = None
 
+        self.obs_start = kwargs['obs_start']
+        self.obs_end = kwargs['obs_end']
+
     def run_static_list(self):
         print("static list runner")
 
-        whole_score = list()
-        # plan 是有序的
-        for shot in self.plan.data:
-            target = shot.target
+        result = {'total': pd.Series(dtype=float),
+                  'score': pd.DataFrame(columns=['cloud'])}
 
-            # 假设曝光时间很短, 望远镜的指向变化很小, 只计算开始和结束位置的云.
-            obstime = Time([shot.start_time, shot.end_time])
+        # total used time
+        def __used_time():
+            t = self.plan.data['end_time'] - self.plan.data['start_time']
+            return t.sum()
+
+        whole_score = list()
+        t_used = __used_time()
+        result['total']['overhead'] = (t_used / (self.obs_end - self.obs_start).to_datetime())
+        # plan is ordered by time
+        for _, shot in self.plan.data.iterrows():
+            coord = SkyCoord(ra=shot['ra'] * u.deg, dec=shot['dec'] * u.deg)
+            target = FixedTarget(coord, name=shot['id'])
+
+            # only count cloud at the beginning and the end
+            obstime = Time([shot['start_time'], shot['end_time']])
             altaz_frame = AltAz(obstime=obstime, location=self.observer.location)
 
             # 赤道坐标系👉地平坐标系👉healpix 编码
@@ -153,20 +133,19 @@ class Ossaf:
             hindex = HH.ang2pix(nside=NSIDE, lon=altaz_target.az, lat=altaz_target.alt)
 
             # 天气如何? 得分如何?
-            cloud = list()
-            score = list()
+            score_cloud = list()
+            # TODO: calculate by time resolution
             for i in range(2):
                 cc = self.weather.cloud[obstime[i].to_value('datetime64', 'date_hm'), hindex[i]]
-                cloud.append(cc)
 
-                score.append(DataQuality.from_cloud(cc))
+                score_cloud.append(DataQuality.from_cloud(cc))
 
-            score = np.mean(score)
-            # print(altaz_target, cloud, f"score = {score}")
+            whole_score.append(score_cloud)
+            result['score'].loc[target.name, 'cloud'] = np.mean(score_cloud)
 
-            whole_score.append(score)
+        result['total']['cloud'] = result['score']['cloud'].mean()
 
-        return whole_score
+        return result
 
     def run_list_with_scheduler(self):
         """
