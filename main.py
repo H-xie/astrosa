@@ -8,11 +8,11 @@ from utils import df2Targets, obs_start, obs_end
 # scheduler = Scheduler()
 
 # create Plan
-asp_priority_plan = pd.read_json('assess/tests/data/schedule_139of300.json')
+asp_priority_plan = pd.read_json('assess/tests/data/schedule_15of30.json')
 asp_priority_plan['start'] = asp_priority_plan['start'].astype('datetime64')
 asp_priority_plan['end'] = asp_priority_plan['end'].astype('datetime64')
 
-asp_priority_plan = asp_priority_plan.rename(columns={'tyc2-id': 'id',
+asp_priority_plan = asp_priority_plan.rename(columns={'name': 'id',
                                                       'start': 'start_time',
                                                       'end': 'end_time',
                                                       '_RAJ2000': 'ra',
@@ -31,5 +31,7 @@ ossaf = Ossaf(observer, plan, None, weather, obs_start=obs_start, obs_end=obs_en
 result = ossaf.run()
 
 print(result)
+
+result['score'].to_csv('score15.csv')
 
 print("end")
