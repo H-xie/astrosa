@@ -109,7 +109,7 @@ class Ossaf:
         print("static list runner")
 
         result = {'total': pd.Series(dtype=float),
-                  'score': pd.DataFrame(columns=['cloud'])}
+                  'score': pd.DataFrame(data=self.plan.data, copy=True)}
 
         # total used time
         def __used_time():
@@ -120,7 +120,7 @@ class Ossaf:
         t_used = __used_time()
         result['total']['overhead'] = (t_used / (self.obs_end - self.obs_start).to_datetime())
         # plan is ordered by time
-        for _, shot in self.plan.data.iterrows():
+        for iPlan, shot in self.plan.data.iterrows():
             coord = SkyCoord(ra=shot['ra'] * u.deg, dec=shot['dec'] * u.deg)
             target = FixedTarget(coord, name=shot['id'])
 
@@ -141,7 +141,7 @@ class Ossaf:
                 score_cloud.append(DataQuality.from_cloud(cc))
 
             whole_score.append(score_cloud)
-            result['score'].loc[target.name, 'cloud'] = np.mean(score_cloud)
+            result['score'].loc[iPlan, 'cloud'] = np.mean(score_cloud)
 
         result['total']['cloud'] = result['score']['cloud'].mean()
 
