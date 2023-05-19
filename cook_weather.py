@@ -1,10 +1,7 @@
-import astropy.units as u
 import numpy as np
-import pandas as pd
 # import healpy as hp
-from astropy.time import Time
 
-from healpix import HH
+from ossaf.healpix import HH
 from utils import *
 
 # create a zone
@@ -19,16 +16,16 @@ print(npix)
 start_time = observer.twilight_evening_astronomical(observing_date, 'next').to_value('datetime64', subfmt='date_hm')
 end_time = observer.twilight_morning_astronomical(observing_date, 'next').to_value('datetime64', subfmt='date_hm')
 
-start_time -= np.timedelta64(1,'m')
-end_time += np.timedelta64(1,'m')
+start_time -= np.timedelta64(1, 'm')
+end_time += np.timedelta64(1, 'm')
 
 print(f'generate cloud data from {start_time} to {end_time}')
 
-datetime_list =[]
+datetime_list = []
 iTime = start_time
 while iTime < end_time:
     datetime_list.append(iTime)
-    iTime += 1*np.timedelta64(1, 'm')
+    iTime += 1 * np.timedelta64(1, 'm')
 
 cloud = np.random.random([len(datetime_list), npix])
 

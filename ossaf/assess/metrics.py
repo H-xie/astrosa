@@ -1,19 +1,18 @@
-from .core import *
-
 """ 度量
 各类量化指标是一种度量，
 
 类似 astroplan 的 constrains.py
 
 """
+import abc
 
 
-class Metric(ABC):
+class Metric(abc.ABC):
     """
     虚基类
     """
 
-    __metaclass__ = ABCMeta
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         pass

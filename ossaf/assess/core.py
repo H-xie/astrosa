@@ -1,27 +1,23 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2023-02-01 001 21:59
 # @Author  : HH-XIE
-from abc import ABCMeta, ABC
+from abc import ABC, ABCMeta
 from logging import warning
 
-import astropy.units as u
 import numpy as np
-import pandas as pd
+from astropy.coordinates import SkyCoord, AltAz
 from astropy.time import Time
-from astropy.coordinates import AltAz
 
+from astroplan import Target as aspTarget, Scheduler
 from astroplan import FixedTarget as aspFixedTarget
-from astroplan import Target as aspTarget
-from healpix import HH
-from .scheduler import Scheduler
 from .weather import Weather
-
-# from healpy import ang2pix
 from .const import NSIDE
-
-from astropy.coordinates import SkyCoord
-
 from .metrics import *
+import pandas as pd
+
+import astropy.units as u
+
+from ..healpix import HH
 
 
 class Target(aspTarget, ABC):
