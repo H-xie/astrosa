@@ -31,7 +31,7 @@ def trace(data: pd.DataFrame):
     theta = [None, None]
     r = [None, None]
 
-    slew_alpha = 0.1
+    slew_alpha = 1
     delt_alpha = (1 - slew_alpha) / len(data) / 5
     for _, line in data.iterrows():
         # Plot slew
@@ -78,7 +78,7 @@ def trace(data: pd.DataFrame):
 
 
 def ani_trace(data: pd.DataFrame):
-    fig = plt.figure()
+    fig = plt.figure(dpi=800)
     ax = fig.add_subplot(projection='polar')
 
     ax.set_theta_zero_location('N')
@@ -101,7 +101,7 @@ def ani_trace(data: pd.DataFrame):
     theta = theta.apply(np.deg2rad)
     r = 90 - r
 
-    line2 = ax.plot(theta[0], r[0], 'g', alpha=0.3)[0]
+    line2 = ax.plot(theta[0], r[0], 'g', alpha=1)[0]
     ax.set_rmax(90)
     degree_sign = u'\N{DEGREE SIGN}'
     r_labels = [

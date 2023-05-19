@@ -21,7 +21,7 @@ N_target = 2539913
 
 
 def make_tyc2_json():
-    tyc2 = fits.open("assess/tests/data/tyc2.fit")
+    tyc2 = fits.open("ossaf/assess/tests/data/tyc2.fit")
 
     tyc2_rows = tyc2[1]._nrows
 
@@ -73,7 +73,7 @@ def make_plan(obs_time, observer: Observer):
     # create observing block
 
     # load json
-    tyc2 = pd.read_json('assess/tests/data/tyc2.json')
+    tyc2 = pd.read_json('ossaf/assess/tests/data/tyc2.json')
     N = 10
     print(f'tyc2 has {N} rows')
 
@@ -115,7 +115,7 @@ def make_plan(obs_time, observer: Observer):
 
 
 def pick_target():
-    with pd.read_json('assess/tests/data/tyc2-records.json', lines=True, chunksize=100) as reader:
+    with pd.read_json('ossaf/assess/tests/data/tyc2-records.json', lines=True, chunksize=100) as reader:
         for chunk in reader:
             coord = SkyCoord(ra=chunk['_RAJ2000'].values * u.deg,
                              dec=chunk['_DEJ2000'].values * u.deg)
@@ -142,11 +142,11 @@ def pick_target():
 
 def get_rise_time():
     chunksize = 100
-    f = open('assess/tests/data/tyc2-rise-BAO.json', 'a')
+    f = open('ossaf/assess/tests/data/tyc2-rise-BAO.json', 'a')
     with Progress() as progress:
         task = progress.add_task("create blocks", total=N_target / chunksize)
 
-        with pd.read_json('assess/tests/data/tyc2-records.json', lines=True, chunksize=chunksize) as reader:
+        with pd.read_json('ossaf/assess/tests/data/tyc2-records.json', lines=True, chunksize=chunksize) as reader:
             for chunk in reader:
                 coord = SkyCoord(ra=chunk['_RAJ2000'].values * u.deg,
                                  dec=chunk['_DEJ2000'].values * u.deg)
@@ -168,7 +168,7 @@ def get_visible_stars():
     with Progress() as progress:
         task = progress.add_task("find visible target", total=N_target / chunksize)
 
-        with pd.read_json('assess/tests/data/tyc2-rise.1791042.json', lines=True, chunksize=chunksize) as reader:
+        with pd.read_json('ossaf/assess/tests/data/tyc2-rise.1791042.json', lines=True, chunksize=chunksize) as reader:
             for chunk in reader:
                 vt = chunk[chunk['rise_time'].values < obs_end]
 
@@ -190,9 +190,9 @@ progress = Progress(
     TimeElapsedColumn()
 )
 
-NCandidate = 30
+NCandidate = 1000
 blocks = []
-tyc2_visible = pd.read_json('assess/tests/data/tycho2-visible.864935.json', lines=True)
+tyc2_visible = pd.read_json('ossaf/tests/data/tycho2-visible.864935.json', lines=True)
 
 tyc2_visible_sample = tyc2_visible.sample(NCandidate)
 

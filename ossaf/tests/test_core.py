@@ -4,7 +4,7 @@
 from unittest import TestCase
 
 import astroplan
-from assess.core import *
+from ossaf.assess.core import *
 import pandas as pd
 
 
