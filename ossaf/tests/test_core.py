@@ -43,7 +43,7 @@ class TestOssaf(TestCase):
         plan.data = s
 
         # create Cloud
-        cloud = pd.read_json("data/cloud.json")
+        cloud = pd.read_json("../data/cloud.json")
         time = Time('2023-01-01 16:00:00')
         weather = Weather(time, cloud)
         observer = astroplan.Observer.at_site("BAO")

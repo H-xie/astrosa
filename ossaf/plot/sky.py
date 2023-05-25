@@ -186,7 +186,7 @@ def plot_cloud(data: pd.Series):
                        grid_map,
                        vmin=0,
                        vmax=1,
-                       levels=50,
+                       # levels=50,
                        cmap='Blues_r')
 
     cb = fig.colorbar(ret, pad=0.1, ticks=np.linspace(0, 1, 11), extend='neither')

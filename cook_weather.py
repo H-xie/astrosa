@@ -30,4 +30,4 @@ while iTime < end_time:
 cloud = np.random.random([len(datetime_list), npix])
 
 df_cloud = pd.DataFrame(cloud, index=datetime_list, columns=range(npix))
-df_cloud.to_json("assess/tests/data/cloud.json", date_format='iso', orient='index')
+df_cloud.to_json("ossaf/data/cloud.json", date_format='iso', orient='index')

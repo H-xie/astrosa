@@ -192,7 +192,7 @@ progress = Progress(
 
 NCandidate = 1000
 blocks = []
-tyc2_visible = pd.read_json('ossaf/tests/data/tycho2-visible.864935.json', lines=True)
+tyc2_visible = pd.read_json('ossaf/data/tycho2-visible.864935.json', lines=True)
 
 tyc2_visible_sample = tyc2_visible.sample(NCandidate)
 

@@ -1,7 +1,7 @@
 from ossaf.assess import *
 import pandas as pd
 
-cloud = pd.read_json("ossaf/assess/test/data/cloud.json")
-weather = Weather(Time('2023-01-01 16:00:00'), cloud)
+cloud = pd.read_json("ossaf/data/cloud.json")
+weather = Weather(cloud)
 
-print(weather.cloud[0])
+print(weather.cloud.iloc[:, 0])
