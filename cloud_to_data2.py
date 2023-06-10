@@ -177,7 +177,7 @@ for filename in os.listdir(folder):
     # 载入数据
     # 读取图像
     # datafits = fits.open("ossaf/data/2023_05_23__00_24_04.fits.bz2")[0]
-    data = datafits.data[0]
+    data = datafits.data[0]  # fixme: 处理三个通道的数据
     gain = datafits.header['GAIN_ELE']
     # data = data / 1e6
 
