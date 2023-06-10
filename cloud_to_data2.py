@@ -86,7 +86,7 @@ def min_d_threshold(star: AltAz, factor=20):
 
 
 def to_data(sources, time):
-    if sources is None:
+    def save_all_zero():
         nside = 4
         hp = HEALPix(nside=nside, order='ring')
         result = pd.DataFrame(columns=['H_ID', 'clear'])
@@ -98,6 +98,9 @@ def to_data(sources, time):
         result = result.T
         result.index = [time.to_datetime()]
         result.to_sql('clear', engine, if_exists='append')
+
+    if sources is None:
+        save_all_zero()
         return
 
     frame = AltAz(obstime=time, location=location)
@@ -116,6 +119,11 @@ def to_data(sources, time):
             num_valid_sources += 1
             valid_sources = pd.concat([valid_sources, tyc], axis=1)
     valid_sources = valid_sources.T
+
+    # if no valide sources save all cloud
+    if num_valid_sources == 0:
+        save_all_zero()
+        return
 
     valid_icrs = SkyCoord(ra=valid_sources.RA_ICRS_ * u.deg, dec=valid_sources.DE_ICRS_ * u.deg, frame='icrs')
     valid_altaz = valid_icrs.transform_to(frame)
@@ -177,7 +185,11 @@ for filename in os.listdir(folder):
     # 载入数据
     # 读取图像
     # datafits = fits.open("ossaf/data/2023_05_23__00_24_04.fits.bz2")[0]
-    data = datafits.data[0]  # fixme: 处理三个通道的数据
+    # 载入 RGB 三色 并转为亮度
+    data = datafits.data[0] + datafits.data[1] + datafits.data[2]
+    data = data.astype(np.float64)
+    data /= 3
+    data = data.astype(np.uint16)
     gain = datafits.header['GAIN_ELE']
     # data = data / 1e6
 
