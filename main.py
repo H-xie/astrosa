@@ -1,6 +1,6 @@
 import astroplan
 from ossaf.assess import *
-from utils import obs_start, obs_end
+from utils import obs_start, obs_end, observer
 
 # scheduler = Scheduler()
 
@@ -19,10 +19,9 @@ asp_priority_plan = asp_priority_plan.rename(columns={'name': 'id',
 
 plan = Plan(asp_priority_plan)
 
-# create Cloud
+# read Cloud
 cloud = pd.read_json("ossaf/data/cloud.json", orient='index')
 weather = Weather(Cloud(cloud))
-observer = astroplan.Observer.at_site("BAO")
 
 ossaf = Ossaf(observer, plan, None, weather, obs_start=obs_start, obs_end=obs_end)
 

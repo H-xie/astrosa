@@ -13,6 +13,7 @@ from astropy.table import QTable
 from astropy.time import Time
 from photutils.detection import DAOStarFinder
 
+from astroplan import Observer
 from cloud_to_data import Mask
 from astropy_healpix import HEALPix
 
@@ -38,6 +39,7 @@ def to_altaz(x, y, x_offset=1053, y_offset=1017, radius=983, north=155.6 * u.deg
 
 # JLO 坐标
 location = EarthLocation(lat=43.82416667 * u.deg, lon=126.331111 * u.deg, height=313 * u.m)
+observer = Observer(location)
 
 engine = sqlite3.connect('ossaf/data/tyc2.sqlite')
 
@@ -85,7 +87,7 @@ def min_d_threshold(star: AltAz, factor=20):
     return result
 
 
-def to_data(sources, time):
+def to_data(sources, time, sqltablename='clear'):
     def save_all_zero():
         nside = 4
         hp = HEALPix(nside=nside, order='ring')
@@ -105,11 +107,14 @@ def to_data(sources, time):
 
     frame = AltAz(obstime=time, location=location)
 
+    # 载入检出的点源，构建地平坐标系，然后转为赤道坐标系ICRS
     df_source = sources.to_pandas()
     altaz_sources = to_altaz(df_source.xcentroid.to_numpy(), df_source.ycentroid.to_numpy())
     star = SkyCoord(alt=altaz_sources.alt, az=altaz_sources.az, frame=frame)
     icrs_sources = star.transform_to('icrs')
 
+    # 在天球坐标系下，做星图匹配。找到有效的点源
+    # FIXME：concat很慢，换成先开好一组空间，填充数据。
     valid_sources = pd.DataFrame()
     num_valid_sources = 0
     for i in range(len(icrs_sources)):
@@ -125,6 +130,7 @@ def to_data(sources, time):
         save_all_zero()
         return
 
+    # Todo: 记录原来点源的位置，减少一次坐标转换 L:108
     valid_icrs = SkyCoord(ra=valid_sources.RA_ICRS_ * u.deg, dec=valid_sources.DE_ICRS_ * u.deg, frame='icrs')
     valid_altaz = valid_icrs.transform_to(frame)
 
@@ -143,7 +149,7 @@ def to_data(sources, time):
         # healpix
         sky_zone_healpix.loc[sky_zone_healpix.H_ID == index, 'valid'] += 1
 
-    # 天区总星数
+    # 累积每个 healpix 块内，星表星数量及亮度指标
     tyc2_total = SkyCoord(ra=tyc2.RA_ICRS_ * u.deg, dec=tyc2.DE_ICRS_ * u.deg, frame='icrs')
     tyc2_total_altaz = tyc2_total.transform_to(frame)
     tycho2_heapix = hp.lonlat_to_healpix(lon=tyc2_total_altaz.az, lat=tyc2_total_altaz.alt)
@@ -165,22 +171,33 @@ def to_data(sources, time):
     sky_zone_healpix['cloud'] = 1 - sky_zone_healpix['clear']
     sky_zone_healpix.to_sql('cloud', engine, if_exists='replace')
 
-    # TODO 按时间保存云量数据。
+    # 按时间保存云量数据
     result = pd.DataFrame(sky_zone_healpix.loc[:, ['H_ID', 'clear']])
     result.set_index('H_ID', inplace=True)
     result = result.T
     result.index = [time.to_datetime()]
-    result.to_sql('clear', engine, if_exists='append')
+    result.to_sql(sqltablename, engine, if_exists='append')
 
 
 # 遍历所有文件
 folder = 'D:\\吉林云量\\2023-06-08\\'
+sqltablename = f'clear_{datetime.datetime.now().isoformat()}'
 for filename in os.listdir(folder):
     if not filename.endswith('bz2'):
         continue
 
     print(filename, datetime.datetime.now().isoformat())
     datafits = fits.open(folder + filename)[0]
+
+    time = datafits.header['DATE-OBS']
+    time = Time(time, format='isot', scale='utc', location=location)
+    time = time - 8 * u.hour
+
+    # 判定是否是夜晚。如果不是则跳过。按航海黄昏 -12° 判定
+    if not observer.is_night(time, horizon=-12 * u.deg):
+        print(f'{time} is not night. Continue to next file.')
+        datafits.close()
+        continue
 
     # 载入数据
     # 读取图像
@@ -193,19 +210,15 @@ for filename in os.listdir(folder):
     gain = datafits.header['GAIN_ELE']
     # data = data / 1e6
 
-    time = datafits.header['DATE-OBS']
-    time = Time(time, format='isot', scale='utc', location=location)
-    time = time - 8 * u.hour
-
     mean, median, std = sigma_clipped_stats(data, mask=mask_data, sigma=3.0)
     # print((mean, median, std))
 
     # 创建DAOStarFinder对象
-    daofind = DAOStarFinder(fwhm=4.0, threshold=5. * std)
+    daofind = DAOStarFinder(fwhm=4.0, threshold=3. * std)
 
     # 提取点源
     sources = daofind.find_stars(data - median, mask=mask_data)
 
-    to_data(sources, time)
+    to_data(sources, time, sqltablename=sqltablename)
 
 engine.close()
