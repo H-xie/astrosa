@@ -132,7 +132,11 @@ class Ossaf:
             score_cloud = list()
             # TODO: calculate by time resolution
             for i in range(2):
-                cc = self.weather.cloud[obstime[i].to_value('datetime64', 'date_hm'), hindex[i]]
+                # find the closest time of row
+                obstime_stamp = obstime[i].to_value('datetime64')
+                closest_time = self.weather.cloud.data.index.asof(obstime_stamp)
+
+                cc = self.weather.cloud[closest_time, hindex[i]]
 
                 score_cloud.append(DataQuality.from_cloud(cc))
 
