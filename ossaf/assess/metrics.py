@@ -31,7 +31,11 @@ class DataQuality(Metric):
 
     @classmethod
     def from_cloud(cls, cloud):
-        return 1 - cloud
+        return cloud
+
+    @classmethod
+    def from_airmass(cls, secz):
+        return secz
 
 
 class ScientifcValue(Metric):

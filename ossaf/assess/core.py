@@ -11,7 +11,7 @@ from astropy.time import Time
 from astroplan import Target as aspTarget, Scheduler
 from astroplan import FixedTarget as aspFixedTarget
 from .weather import Weather
-from .const import NSIDE
+from .const import NSIDE, MAX_PRIORITY
 from .metrics import *
 import pandas as pd
 
@@ -62,11 +62,6 @@ class Plan:
         # save to member
         self.data = data
 
-    @property
-    def slew_time(self):
-        # TODO 计算指向耗时
-        return 0 * u.second
-
 
 class Ossaf:
     """ 评估器
@@ -82,6 +77,7 @@ class Ossaf:
                  observer,
                  plan: Plan = None,
                  scheduler: Scheduler = None,
+                 candidates: pd.DataFrame = None,
                  weather: Weather = None,
                  **kwargs):
         assert (plan is not None) or (scheduler is not None), \
@@ -93,6 +89,7 @@ class Ossaf:
         self.observer = observer
         self.plan = plan
         self.scheduler = scheduler
+        self.candidates = candidates
         self.weather = weather
 
         # result metric 是一个字典，key 是度量的名称，value 是度量的值
@@ -115,6 +112,10 @@ class Ossaf:
         whole_score = list()
         t_used = __used_time()
         result['total']['overhead'] = (t_used / (self.obs_end - self.obs_start).to_datetime())
+
+        # TODO: 评价指标交给 DataQuality 类计算
+        # priority score
+        result['total']['scientific_score'] = 0
         # plan is ordered by time
         for iPlan, shot in self.plan.data.iterrows():
             coord = SkyCoord(ra=shot['ra'] * u.deg, dec=shot['dec'] * u.deg)
@@ -130,6 +131,7 @@ class Ossaf:
 
             # 天气如何? 得分如何?
             score_cloud = list()
+            score_airmass = list()
             # TODO: calculate by time resolution
             for i in range(2):
                 # find the closest time of row
@@ -140,10 +142,21 @@ class Ossaf:
 
                 score_cloud.append(DataQuality.from_cloud(cc))
 
+                # airmass
+                score_airmass.append(DataQuality.from_airmass(altaz_target[i].secz))
+
             whole_score.append(score_cloud)
             result['score'].loc[iPlan, 'cloud'] = np.mean(score_cloud)
+            result['score'].loc[iPlan, 'airmass'] = np.mean(score_airmass)
+
+            # get priority
+            result['total']['scientific_score'] += MAX_PRIORITY - shot.priority
 
         result['total']['cloud'] = result['score']['cloud'].mean()
+        result['total']['airmass'] = result['score']['airmass'].mean()
+        # $$ q = \frac{1}{3} (\mathrm{airmass} - 1) + \mathrm{cloud}$$
+        result['total']['expected_quality'] = 1 / 3 * (result['total']['airmass'] - 1) + result['total']['cloud']
+        result['total']['scheduled_rate'] = len(self.plan.data) / len(self.candidates)
 
         return result
 

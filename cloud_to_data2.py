@@ -17,6 +17,8 @@ from astroplan import Observer
 from cloud_to_data import Mask
 from astropy_healpix import HEALPix
 
+from ossaf.assess.const import NSIDE
+
 
 def to_altaz(x, y, x_offset=1053, y_offset=1017, radius=983, north=155.6 * u.deg):
     # move to center
@@ -89,8 +91,7 @@ def min_d_threshold(star: AltAz, factor=20):
 
 def to_data(sources, time, sqltablename='clear'):
     def save_all_zero():
-        nside = 4
-        hp = HEALPix(nside=nside, order='ring')
+        hp = HEALPix(nside=NSIDE, order='ring')
         result = pd.DataFrame(columns=['H_ID', 'clear'])
         for i in range(hp.npix):
             result = pd.concat(
@@ -99,7 +100,7 @@ def to_data(sources, time, sqltablename='clear'):
         result.set_index('H_ID', inplace=True)
         result = result.T
         result.index = [time.to_datetime()]
-        result.to_sql('clear', engine, if_exists='append')
+        result.to_sql(sqltablename, engine, if_exists='append')
 
     if sources is None:
         save_all_zero()
@@ -169,7 +170,7 @@ def to_data(sources, time, sqltablename='clear'):
     sky_zone_healpix.loc[sky_zone_healpix['clear'] > 1, 'clear'] = 1
 
     sky_zone_healpix['cloud'] = 1 - sky_zone_healpix['clear']
-    sky_zone_healpix.to_sql('cloud', engine, if_exists='replace')
+    # sky_zone_healpix.to_sql('cloud', engine, if_exists='replace')
 
     # 按时间保存云量数据
     result = pd.DataFrame(sky_zone_healpix.loc[:, ['H_ID', 'clear']])
