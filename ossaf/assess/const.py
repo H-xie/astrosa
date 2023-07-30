@@ -1,1 +1,2 @@
 NSIDE = 2 ** 2
+MAX_PRIORITY = 5

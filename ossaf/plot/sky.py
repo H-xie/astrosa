@@ -57,7 +57,7 @@ def trace(data: pd.DataFrame):
 
         # print(theta, r, 'x')
         ax.plot(theta, r, 'r')
-        ax.text(theta[0], r[0], line['id'], alpha=0.05)
+        # ax.text(theta[0], r[0], line['id'], alpha=0.05)
         # move end to begin
         theta[0] = theta[1]
         r[0] = r[1]
@@ -75,6 +75,7 @@ def trace(data: pd.DataFrame):
     ]
     ax.set_rgrids(range(0, 91, 15), r_labels)
     fig.savefig('trace.svg')
+    fig.savefig('trace.eps')
 
 
 def ani_trace(data: pd.DataFrame):
