@@ -6,7 +6,7 @@ from astropy.coordinates import AltAz
 
 class Telescope:
     def __init__(self, location, v_max, a_max, field_of_view: u.deg, max_magnitude, current_pointing,
-                 current_time=None) -> object:
+                 current_time=None):
         """
         :param v_max: maximum velocity of telescope unit: degree/sec
         :param a_max: maximum acceleration of telescope unit: degree/sec^2
