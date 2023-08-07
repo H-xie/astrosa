@@ -8,28 +8,9 @@
 望远镜是地平式的，HEALPix 也用地平的球，天区云层覆盖情况，也是地平坐标系
 HEALPix 的`nside`取决于望远镜的视场。我们假设，望远镜的视场是 a_telescope，nside2resol(nside) 应等于 a_telescope
 """
-from abc import ABC
-
-from astropy.time import Time
-import pandas as pd
 
 
-class Deprecate:
-    class AbstractCloud(ABC):
-        pass
-
-    class Cloud(AbstractCloud):
-        def __init__(self, data: pd.DataFrame):
-            self.data = data
-
-        def __getitem__(self, item):
-            return self.data.at[item, "cloud"]
-
-    class MuCloud(AbstractCloud):
-
-        def __init__(self, data: pd.MultiIndex):
-            self.data = data
-
+#  Licensed under the MIT license - see LICENSE.txt
 
 class Cloud:
     """云的数据

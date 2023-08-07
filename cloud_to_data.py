@@ -1,8 +1,24 @@
-import astropy.io.fits as fits
+#  Licensed under the MIT license - see LICENSE.txt
+import argparse
+import datetime
+import os
+import sqlite3
+
 import cv2 as cv
-import matplotlib.pyplot as plt
 import numpy as np
-import astropy.units as u
+import pandas as pd
+from astroplan import Observer
+# 像素坐标系到地平坐标系的映射
+from astropy import units as u
+from astropy.coordinates import SkyCoord, AltAz, EarthLocation
+from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
+from astropy.time import Time
+from astropy_healpix import HEALPix
+from photutils.detection import DAOStarFinder
+
+from astrosa.assess.const import NSIDE
+from utils import observing_date
 
 
 # Point
@@ -30,124 +46,229 @@ class Mask:
         cv.circle(data, (center.x, center.y), radius, 1, -1)
 
 
-def segment_cloud_OTSU(cloud_file: str):
-    # load cloud data
-    cloud_fits = fits.open(cloud_file)
-    cloud = cloud_fits[0].data
-    cloud = (cloud - cloud.min()).astype(np.uint16)
-    cloud = cloud.transpose(1, 2, 0)
-    gray_cloud = cv.cvtColor(cloud, cv.COLOR_RGB2GRAY)
+def to_altaz(x, y, x_offset=1053, y_offset=1017, radius=983, north=155.6 * u.deg):
+    # move to center
+    x = x - 1053
+    y = y - 1017
 
-    cloud_mask = Mask(gray_cloud)
+    # polar coordinates
+    r = np.sqrt(x ** 2 + y ** 2)
+    theta = np.arctan2(y, x)
+    # print(f"theta: {theta}, r: {r}")
 
-    masked_cloud = cloud * cloud_mask.data
-    image_to_plot = masked_cloud / cloud.max()
-    plt.imshow(image_to_plot, origin='lower')
-    plt.show()
+    # convert to altaz
+    alt = r / radius * u.rad * np.pi / 2
+    alt = np.pi / 2 * u.rad - alt
+    az = (- theta) * u.rad - north
+    # print(f"alt: {alt}, az: {az}")
 
-    # get cloud's saturation
-    cloud_8bit = masked_cloud / cloud.max() * 255
-    cloud_8bit = cloud_8bit.astype(np.uint8)
-    cloud_saturation = cv.cvtColor(cloud_8bit, cv.COLOR_RGB2HSV)[:, :, 1]
+    return AltAz(alt=alt, az=az)
 
-    plt.imshow(cloud_saturation, origin='lower', cmap='Blues_r')
-    plt.show()
 
-    # get histogram of saturation
-    hist_saturation = np.histogram(cloud_saturation, bins=256, range=(0, 255))[0]
-    hist_saturation[0] = 0
+# JLO 坐标
+location = EarthLocation(lat=43.82416667 * u.deg, lon=126.331111 * u.deg, height=313 * u.m)
+observer = Observer(location)
 
-    # 总像素数量
-    total_pixels = np.sum(hist_saturation)
+engine = sqlite3.connect('astrosa/data/astrosa.sqlite')
+engine_tyc2 = sqlite3.connect('astrosa/data/tyc2.sqlite')
 
-    # 初始化类间方差最大值和最佳阈值
-    max_variance = 0
-    threshold = 0
+limit_magnitude = 8
+tyc2 = pd.read_sql_query(f"SELECT * FROM tyc2 WHERE VTmag < {limit_magnitude} ", engine_tyc2)
 
-    # 对于每个可能的阈值进行计算
-    for t in range(len(hist_saturation)):
-        # 类别1：小于等于阈值 t
-        class1_pixels = np.sum(hist_saturation[:t + 1])
-        class1_weights = class1_pixels / total_pixels
-        class1_mean = np.sum(np.arange(t + 1) * hist_saturation[:t + 1]) / class1_pixels
 
-        # 类别2：大于阈值 t
-        class2_pixels = np.sum(hist_saturation[t + 1:])
-        class2_weights = class2_pixels / total_pixels
-        class2_mean = np.sum(np.arange(t + 1, len(hist_saturation)) * hist_saturation[t + 1:]) / class2_pixels
+def find_tyc_star(star: SkyCoord, altaz):
+    d_ra = tyc2.RA_ICRS_ - star.ra
+    d_dec = tyc2.DE_ICRS_ - star.dec
 
-        # 类间方差
-        variance = class1_weights * class2_weights * (class1_mean - class2_mean) ** 2
+    d = d_ra ** 2 + d_dec ** 2
 
-        # 更新最大方差和阈值
-        if variance > max_variance:
-            max_variance = variance
-            threshold = t
+    min_id = np.argmin(d)
+    min_d = np.sqrt(d[min_id])
 
-    print(f"threshold: {threshold}")
-    seg_cloud = cloud_saturation > threshold
-    plt.imshow(seg_cloud, origin='lower', cmap='gray')
-    plt.show()
+    # print(f"min_d: {min_d}, min_id: {min_id}")
 
-    seg_cloud = np.expand_dims(seg_cloud, axis=2)
-    result = masked_cloud * seg_cloud.astype(np.int32)
+    threshold = min_d_threshold(altaz)
 
+    if min_d > threshold:
+        return None, min_d
+    else:
+        return tyc2.iloc[min_id], min_d
+
+
+mask = Mask()
+mask_data = mask.data
+t = mask_data == 0
+mask_data = t
+
+
+def min_d_threshold(star: AltAz, factor=20):
+    """
+    根据地平高度判断最小距离阈值
+    """
+    a = 2 * star.alt.to(u.rad).value / np.pi
+    # print(a)
+    b = (1 - a) * mask.full_radius
+    # print(b)
+    c = (1 / b)
+    # print(c)
+    c *= factor
+    result = c * 360 / 2 / np.pi
+    return result
+
+
+def to_data(sources, time):
+    def save_all_zero():
+        hp = HEALPix(nside=NSIDE, order='ring')
+        result = pd.DataFrame(columns=['H_ID', 'clear'])
+        for i in range(hp.npix):
+            result = pd.concat(
+                [result, pd.DataFrame([[i, 0]], columns=['H_ID', 'clear'])])
+
+        result.set_index('H_ID', inplace=True)
+        result = result.T
+        result.index = [time.to_datetime()]
+        return result
+
+    if sources is None:
+        return save_all_zero()
+
+
+    frame = AltAz(obstime=time, location=location)
+
+    # 载入检出的点源，构建地平坐标系，然后转为赤道坐标系ICRS
+    df_source = sources.to_pandas()
+    altaz_sources = to_altaz(df_source.xcentroid.to_numpy(), df_source.ycentroid.to_numpy())
+    star = SkyCoord(alt=altaz_sources.alt, az=altaz_sources.az, frame=frame)
+    icrs_sources = star.transform_to('icrs')
+
+    # 在天球坐标系下，做星图匹配。找到有效的点源
+    # FIXME：concat很慢，换成先开好一组空间，填充数据。
+    valid_sources = pd.DataFrame()
+    num_valid_sources = 0
+    for i in range(len(icrs_sources)):
+        tyc, r = find_tyc_star(icrs_sources[i], star[i])
+        # print(tyc, r)
+        if tyc is not None:
+            num_valid_sources += 1
+            valid_sources = pd.concat([valid_sources, tyc], axis=1)
+    valid_sources = valid_sources.T
+
+    # if no valide sources save all cloud
+    if num_valid_sources == 0:
+        return save_all_zero()
+
+    # Todo: 记录原来点源的位置，减少一次坐标转换 L:108
+    valid_icrs = SkyCoord(ra=valid_sources.RA_ICRS_.to_numpy() * u.deg, dec=valid_sources.DE_ICRS_.to_numpy() * u.deg,
+                          frame='icrs')
+    valid_altaz = valid_icrs.transform_to(frame)
+
+    # healpix 存储
+    sky_zone_healpix = pd.DataFrame(columns=['H_ID', 'valid', 'total'])
+
+    nside = 4
+    hp = HEALPix(nside=nside, order='ring')
+    for i in range(hp.npix):
+        sky_zone_healpix = pd.concat(
+            [sky_zone_healpix, pd.DataFrame([[i, 0, 0, 0]], columns=['H_ID', 'valid', 'total', 'mag_score'])])
+
+    # 遍历可见星，填充表格
+    h_id = hp.lonlat_to_healpix(lon=valid_altaz.az, lat=valid_altaz.alt)
+    for index in h_id:
+        # healpix
+        sky_zone_healpix.loc[sky_zone_healpix.H_ID == index, 'valid'] += 1
+
+    # 累积每个 healpix 块内，星表星数量及亮度指标
+    tyc2_total = SkyCoord(ra=tyc2.RA_ICRS_.to_numpy() * u.deg, dec=tyc2.DE_ICRS_.to_numpy() * u.deg, frame='icrs')
+    tyc2_total_altaz = tyc2_total.transform_to(frame)
+    tycho2_heapix = hp.lonlat_to_healpix(lon=tyc2_total_altaz.az, lat=tyc2_total_altaz.alt)
+    for i in range(len(tyc2_total_altaz)):
+        mag = tyc2.VTmag[i]
+        tstar = tyc2_total_altaz[i]
+        # healpix
+        h_id = tycho2_heapix[i]
+        sky_zone_healpix.loc[sky_zone_healpix.H_ID == h_id, 'total'] += 1
+        sky_zone_healpix.loc[sky_zone_healpix.H_ID == h_id, 'mag_score'] += limit_magnitude - mag
+
+    sky_zone_healpix.mag_score = sky_zone_healpix.mag_score / 9
+
+    sky_zone_healpix['clear'] = (sky_zone_healpix.valid / sky_zone_healpix.mag_score) / 0.4
+    sky_zone_healpix.loc[sky_zone_healpix.valid > 0, 'clear'] += 0.5
+    sky_zone_healpix.loc[sky_zone_healpix['clear'] > 1, 'clear'] = 1
+
+    sky_zone_healpix['cloud'] = 1 - sky_zone_healpix['clear']
+
+    # 按时间保存云量数据
+    result = pd.DataFrame(sky_zone_healpix.loc[:, ['H_ID', 'clear']])
+    result.set_index('H_ID', inplace=True)
+    result = result.T
+    result.index = [time.to_datetime()]
     return result
 
 
 if __name__ == '__main__':
-    import argparse
+    # add parameter folder
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--folder', type=str)
 
-    parser = argparse.ArgumentParser(description='Convert cloud data to FITS format.')
-    parser.add_argument('cloud', type=str, help='cloud name')
-    # parser.add_argument('folder', type=str, help='cloud folder')
-    args = parser.parse_args()
+    folder = parser.parse_args().folder
+    if folder is None:
+        raise ValueError('folder is None')
+    # 遍历所有文件
+    date_string = observing_date.strftime("%Y_%m_%d_%H_%M_%S")
 
-    # seg_cloud = segment_cloud_OTSU(args.cloud)
-    # plt.imshow(seg_cloud / seg_cloud.max(), origin='lower')
-    # plt.show()
+    sqltablename = f'clear_{date_string}'
+    full_cloud = pd.DataFrame()
+    for filename in os.listdir(folder):
+        if not filename.endswith('bz2'):
+            continue
 
-    # iterate cloud folder
-    import os
+        print(filename, datetime.datetime.now().isoformat())
+        # get date time from filename
+        splite_file_name = filename.split('.')
+        splite_file_name = splite_file_name[0].split('_')
+        date_ = '-'.join(splite_file_name[0:3])
+        time_ = ':'.join(splite_file_name[4:7])
+        dt = date_ + 'T' + time_
+        time = datetime.datetime.strptime(dt, '%Y-%m-%dT%H:%M:%S')
+        time = Time(time, format='datetime', scale='utc', location=location)
 
-    from astropy.io import fits
-    from photutils.detection import DAOStarFinder
-    from astropy.stats import sigma_clipped_stats
+        # time = datafits.header['DATE-OBS']
+        # time = Time(time, format='isot', scale='utc', location=location)
+        time = time - 8 * u.hour
 
-    datafits = fits.open(args.cloud)[0]
-    # 读取图像
-    data = datafits.data[0]
-    gain = datafits.header['GAIN_ELE']
-    # data = data / 1e6
+        # 判定是否是夜晚。如果不是则跳过。按航海黄昏 -12° 判定
+        if not observer.is_night(time, horizon=-12 * u.deg):
+            print(f'{time} is not night. Continue to next file.')
+            # fitsfile.close()
+            continue
 
-    mask = Mask(data).data
-    t = mask == 0
-    mask = t
+        fitsfilename = os.path.join(folder, filename)
+        fitsfile = fits.open(fitsfilename)
+        datafits = fitsfile[0]
 
-    mean, median, std = sigma_clipped_stats(data, mask=mask, sigma=3.0)
-    print((mean, median, std))
+        # 载入数据
+        # 读取图像
+        # 载入 RGB 三色 并转为亮度
+        data = datafits.data[0] + datafits.data[1] + datafits.data[2]
+        data = data.astype(np.float64)
+        data /= 3
+        data = data.astype(np.uint16)
+        gain = datafits.header['GAIN_ELE']
+        # data = data / 1e6
 
-    # 创建DAOStarFinder对象
-    daofind = DAOStarFinder(fwhm=3.0, threshold=5. * std)
+        mean, median, std = sigma_clipped_stats(data, mask=mask_data, sigma=3.0)
+        # print((mean, median, std))
 
-    # 提取点源
-    sources = daofind.find_stars(data - median, mask=mask)
+        # 创建DAOStarFinder对象
+        daofind = DAOStarFinder(fwhm=4.0, threshold=3. * std)
 
-    # 打印点源坐标和其他属性
-    print(sources)
+        # 提取点源
+        sources = daofind.find_stars(data - median, mask=mask_data)
 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from astropy.visualization import SqrtStretch
-    from astropy.visualization.mpl_normalize import ImageNormalize
-    from photutils.aperture import CircularAperture
+        cloud = to_data(sources, time)
+        full_cloud = pd.concat([full_cloud, cloud])
 
-    positions = np.transpose((sources['xcentroid'], sources['ycentroid']))
-    apertures = CircularAperture(positions, r=4.0)
-    norm = ImageNormalize(stretch=SqrtStretch())
-    plt.imshow(data, cmap='Greys', origin='lower', norm=norm,
-               interpolation='nearest')
-    apertures.plot(color='blue', lw=1.5, alpha=0.5)
-    plt.legend()
-
-    plt.show()
+    # convert clear to cloud
+    cloud_sql_table_name = f'cloud_{date_string}'
+    full_cloud.to_sql(cloud_sql_table_name, engine, if_exists='replace')
+    engine.close()

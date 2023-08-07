@@ -4,7 +4,11 @@
 类似 astroplan 的 constrains.py
 
 """
+#  Licensed under the MIT license - see LICENSE.txt
+
 import abc
+
+from .const import MAX_PRIORITY
 
 
 class Metric(abc.ABC):
@@ -42,3 +46,7 @@ class ScientifcValue(Metric):
 
     def __init__(self):
         pass
+
+    @classmethod
+    def from_priority(cls, priority):
+        return MAX_PRIORITY - priority

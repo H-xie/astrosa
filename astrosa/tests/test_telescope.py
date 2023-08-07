@@ -1,10 +1,12 @@
+#  Licensed under the MIT license - see LICENSE.txt
+
 from unittest import TestCase
 
 import astropy.units as u
 from astropy.coordinates import EarthLocation, SkyCoord, AltAz
 from astropy.time import Time
 
-from ossaf.assess.telescope import Telescope
+from astrosa.assess.telescope import Telescope
 
 
 class TestTelescope(TestCase):

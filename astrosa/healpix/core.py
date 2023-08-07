@@ -1,3 +1,5 @@
+#  Licensed under the MIT license - see LICENSE.txt
+
 from astropy_healpix import HEALPix as astroHP
 
 

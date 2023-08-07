@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/OSSAF.iml" filepath="$PROJECT_DIR$/.idea/OSSAF.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/AstroSA.iml" filepath="$PROJECT_DIR$/.idea/AstroSA.iml" />
     </modules>
   </component>
 </project>

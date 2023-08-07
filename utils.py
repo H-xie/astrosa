@@ -4,6 +4,8 @@
 @Author  ：heaven
 @Date    ：2023/3/1 20:16 
 """
+#  Licensed under the MIT license - see LICENSE.txt
+
 import pandas as pd
 from astropy.coordinates import SkyCoord, EarthLocation
 import astropy.units as u
@@ -30,6 +32,7 @@ observing_date = Time('2023-06-08')
 
 obs_start = observer.twilight_evening_astronomical(time=observing_date, which='next')
 obs_end = observer.twilight_morning_astronomical(time=obs_start, which='next')
+
 
 def schedule2df_ex(schedule: Schedule):
     columns = ['name',
@@ -60,12 +63,13 @@ def schedule2df_ex(schedule: Schedule):
         schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
     schedule_df = schedule_df.infer_objects()
     schedule_df['name'] = schedule_df['name'].astype(str)
-    schedule_df['start'] = schedule_df['start'].astype('datetime64')
-    schedule_df['end'] = schedule_df['end'].astype('datetime64')
+    schedule_df['start'] = schedule_df['start'].astype('datetime64[ns]')
+    schedule_df['end'] = schedule_df['end'].astype('datetime64[ns]')
 
     schedule_df = schedule_df.sort_values('start')
 
     return schedule_df
+
 
 def schedule2df(schedule: Schedule):
     progress = Progress(
@@ -105,8 +109,8 @@ def schedule2df(schedule: Schedule):
             schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
     schedule_df = schedule_df.infer_objects()
     schedule_df['name'] = schedule_df['name'].astype(str)
-    schedule_df['start'] = schedule_df['start'].astype('datetime64')
-    schedule_df['end'] = schedule_df['end'].astype('datetime64')
+    schedule_df['start'] = schedule_df['start'].astype('datetime64[ns]')
+    schedule_df['end'] = schedule_df['end'].astype('datetime64[ns]')
 
     schedule_df = schedule_df.sort_values('start')
 
