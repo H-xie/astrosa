@@ -3,23 +3,19 @@ ax.plot(theta, r) matplotlib 的函数
 theta 是弧度, r 是直径
 theta 是方向角 AZ, r 是高度角 ALT
 """
-from math import sqrt
+#  Licensed under the MIT license - see LICENSE.txt
 
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
-from astropy.coordinates import SkyCoord
 import astropy.units as u
-from astropy.time import Time
+import astropy_healpix as ahp
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from astroplan import FixedTarget
+from astropy.coordinates import SkyCoord
 from astropy_healpix.healpy import ang2pix
 from matplotlib import animation
-from matplotlib.ticker import MaxNLocator
-from pandas import DataFrame
 
-from astroplan import FixedTarget, Observer
 from utils import observer
-
-import astropy_healpix as ahp
 
 
 def trace(data: pd.DataFrame):

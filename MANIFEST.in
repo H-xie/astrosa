@@ -1,0 +1,8 @@
+include LICENSE.txt
+include README.md
+include astrosa/data/astrosa.sqlite
+
+exclude astrosa/data/tyc2.*
+exclude .idea
+prune priority-result
+prune sequential-result

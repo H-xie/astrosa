@@ -1,3 +1,5 @@
+#  Licensed under the MIT license - see LICENSE.txt
+
 import astropy.coordinates as coord
 import astropy.time as atime
 import astropy.units as u
