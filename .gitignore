@@ -1,2 +1,7 @@
 .idea
 *.csv
+
+dist
+*.egg-info
+
+astrosa/version.py
