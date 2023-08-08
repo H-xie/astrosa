@@ -8,9 +8,13 @@ from astrosa.plot import plot_cloud
 
 conn = sqlite3.connect('astrosa/data/astrosa.sqlite')
 data = pd.read_sql_query('select * from cloud_2023_06_08_00_00_00', con=conn, index_col='index')
-# data = pd.read_json('astrosa/data/cloud.json')
+data = data.astype(float)
 
-plot_cloud(data.iloc[1, :])
+one_cloud = data.iloc[10, :]
+plot_cloud(one_cloud)
 plt.gcf().savefig('cloud.svg')
+plt.gcf().savefig('cloud.png')
+
+one_cloud.to_csv('cloud.csv', index=False)
 
 plt.show()

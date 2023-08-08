@@ -202,6 +202,7 @@ def to_data(sources, time):
     result.set_index('H_ID', inplace=True)
     result = result.T
     result.index = [time.to_datetime()]
+    result = 1 - result
     return result
 
 
