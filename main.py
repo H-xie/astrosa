@@ -21,9 +21,9 @@ weather = Weather(Cloud(cloud))
 
 # read Plan
 asp_priority_plan = pd.read_sql('select * from priority_schedule_2023_06_08_00_00_00', con=conn)
-asp_sequantial_plan = pd.read_sql('select * from sequential_schedule_2023_06_08_00_00_00', con=conn)
+asp_sequential_plan = pd.read_sql('select * from sequential_schedule_2023_06_08_00_00_00', con=conn)
 
-asp_plans = {"priority": asp_priority_plan, "sequential": asp_sequantial_plan}
+asp_plans = {"priority": asp_priority_plan, "sequential": asp_sequential_plan}
 
 # overall result
 result_total = pd.DataFrame(index=asp_plans.keys(),
