@@ -6,15 +6,14 @@
 """
 #  Licensed under the MIT license - see LICENSE.txt
 
-import pandas as pd
-from astropy.coordinates import SkyCoord, EarthLocation
 import astropy.units as u
-from astropy.time import Time
-from rich.progress import Progress, TimeElapsedColumn
-
+import pandas as pd
 from astroplan import FixedTarget
 from astroplan import Schedule
 from astroplan.observer import Observer
+from astropy.coordinates import SkyCoord, EarthLocation
+from astropy.time import Time
+from rich.progress import Progress, TimeElapsedColumn
 
 
 def df2Targets(df: pd.DataFrame):
@@ -40,7 +39,8 @@ def schedule2df_ex(schedule: Schedule):
                'end',
                'RA_ICRS_',
                'DE_ICRS_',
-               'priority']
+               'priority',
+               'configuration']
 
     schedule_df = pd.DataFrame(
         columns=columns)
@@ -52,12 +52,12 @@ def schedule2df_ex(schedule: Schedule):
             target_names = slot.block.target.name
             ra = slot.block.target.ra.value
             dec = slot.block.target.dec.value
-            # config = slot.block.configuration
+            config = str(slot.block.configuration)
             priority = slot.block.priority
         else:
             continue
 
-        tmp = pd.Series([target_names, start_times, end_times, ra, dec, priority],
+        tmp = pd.Series([target_names, start_times, end_times, ra, dec, priority,config],
                         index=columns
                         )
         schedule_df = pd.concat([schedule_df, tmp.to_frame().T], ignore_index=True)
@@ -98,7 +98,7 @@ def schedule2df(schedule: Schedule):
                 target_names = slot.block.target.name
                 ra = slot.block.target.ra.value
                 dec = slot.block.target.dec.value
-                config = slot.block.configuration
+                config = str(slot.block.configuration)
                 priority = slot.block.priority
             else:
                 continue

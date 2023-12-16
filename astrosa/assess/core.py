@@ -3,8 +3,6 @@
 from abc import ABC, ABCMeta
 from logging import warning
 
-import astropy.units as u
-import numpy as np
 import pandas as pd
 from astroplan import FixedTarget as aspFixedTarget
 from astroplan import Target as aspTarget, Scheduler
@@ -13,6 +11,7 @@ from astropy.time import Time
 
 from .const import NSIDE
 from .metrics import *
+from .telescope import Telescope
 from .weather import Weather
 from ..healpix import HH
 
@@ -76,6 +75,7 @@ class Assessor:
                  scheduler: Scheduler = None,
                  candidates: pd.DataFrame = None,
                  weather: Weather = None,
+                 telescope: Telescope = None,
                  **kwargs):
         assert (plan is not None) or (scheduler is not None), \
             f"plan is for static observation, scheduler is for dynamic observation. Either should provide"
@@ -88,6 +88,7 @@ class Assessor:
         self.scheduler = scheduler
         self.candidates = candidates
         self.weather = weather
+        self.telescope = telescope
 
         # result metric 是一个字典，key 是度量的名称，value 是度量的值
         self.result = None
@@ -102,13 +103,14 @@ class Assessor:
                   'score': pd.DataFrame(data=self.plan.data, copy=True)}
 
         # total used time
-        def __used_time():
+        def _used_time():
             t = self.plan.data['end_time'] - self.plan.data['start_time']
             return t.sum()
 
         whole_score = list()
-        t_used = __used_time()
-        result['total']['overhead'] = (t_used / (self.obs_end - self.obs_start).to_datetime())
+        t_used = _used_time()
+        total_time = (self.obs_end - self.obs_start).to_datetime()
+        result['total']['overhead'] = Overhead.overhead(t_used, total_time)
 
         # priority score
         result['total']['scientific_score'] = 0
@@ -146,16 +148,23 @@ class Assessor:
             result['score'].loc[iPlan, 'cloud'] = np.mean(score_cloud)
             result['score'].loc[iPlan, 'airmass'] = np.mean(score_airmass)
             result['score'].loc[iPlan, 'scientific_score'] = ScientifcValue.from_priority(shot.priority)
+            result['score'].loc[iPlan, 'ratio_to_best_airmass'] = RatioToBestAirmass.from_target(self.observer,
+                                                                                                 obstime_stamp,
+                                                                                                 target)
 
-        result['score']['expected_quality'] = 1 / 3 * (result['score']['airmass'] - 1) + result['score']['cloud']
+        result['score']['expected_quality'] = DataQuality.score(result['score']['cloud'],
+                                                                result['score']['airmass'])
 
         # Total score
         result['total']['cloud'] = result['score']['cloud'].mean()
         result['total']['airmass'] = result['score']['airmass'].mean()
-        # $$ q = \frac{1}{3} (\mathrm{airmass} - 1) + \mathrm{cloud}$$
-        result['total']['expected_quality'] = 1 / 3 * (result['total']['airmass'] - 1) + result['total']['cloud']
-        result['total']['scheduled_rate'] = len(self.plan.data) / len(self.candidates)
+        result['total']['expected_quality'] = DataQuality.score(result['total']['cloud'],
+                                                                result['total']['airmass'])
+        result['total']['scheduled_rate_in_request'] = ScheduledRate.in_request(self.plan, self.candidates)
+        if hasattr(self.candidates, 'exposure_minutes'):
+            result['total']['scheduled_rate_in_time'] = ScheduledRate.in_time(t_used, self.candidates)
         result['total']['scientific_score'] += result['score']['scientific_score'].sum()
+        result['total']['ratio_to_best_airmass'] = result['score']['ratio_to_best_airmass'].mean()
 
         return result
 

@@ -14,11 +14,16 @@ from astroplan import FixedTarget
 from astropy.coordinates import SkyCoord
 from astropy_healpix.healpy import ang2pix
 from matplotlib import animation
+from matplotlib.colors import ListedColormap
 
 from utils import observer
 
+values = [0, 1]
+color_set = plt.cm.viridis(np.linspace(0, 0.5, len(values)))
+cmap = ListedColormap(color_set)
 
-def trace(data: pd.DataFrame):
+
+def trace(data: pd.DataFrame, savename: str = 'trace'):
     fig = plt.figure()
     ax = fig.add_subplot(projection='polar')
 
@@ -27,16 +32,17 @@ def trace(data: pd.DataFrame):
     theta = [None, None]
     r = [None, None]
 
-    slew_alpha = 1
-    delt_alpha = (1 - slew_alpha) / len(data) / 5
+    slew_alpha = 0.2
+    # delt_alpha = (1 - slew_alpha) / len(data)
     for _, line in data.iterrows():
         # Plot slew
         if theta[0] is not None:
             theta[1] = np.deg2rad(line['start_az'])
             r[1] = 90 - line['start_alt']
 
-            ax.plot(theta, r, 'g', alpha=slew_alpha)
-            slew_alpha += delt_alpha
+            ax.plot(theta, r, color=cmap(values[0]), alpha=slew_alpha,
+                    linestyle='--', linewidth=1)
+            # slew_alpha += delt_alpha
             # print(theta, r)
 
         else:
@@ -52,8 +58,15 @@ def trace(data: pd.DataFrame):
         r = 90 - np.array(r)
 
         # print(theta, r, 'x')
-        ax.plot(theta, r, 'r')
-        # ax.text(theta[0], r[0], line['id'], alpha=0.05)
+        # plot exposure trace
+        ax.plot(theta, r, color=cmap(values[1]))
+
+        # annotate
+        # ax.annotate(line['id'], (theta[1], r[1]), xytext=(theta[1], r[1] + 15), arrowprops={
+        #     'arrowstyle': '->',
+        #     'linewidth': 0.5,
+        # }, fontsize=5)
+
         # move end to begin
         theta[0] = theta[1]
         r[0] = r[1]
@@ -70,11 +83,15 @@ def trace(data: pd.DataFrame):
         '0' + degree_sign + ' Alt.',
     ]
     ax.set_rgrids(range(0, 91, 15), r_labels)
-    fig.savefig('trace.svg')
-    fig.savefig('trace.eps')
+
+    # create legend
+    ax.legend(['Exposure', 'Slew'], loc='upper right', fontsize=5)
+
+    fig.savefig(f'{savename}.svg')
+    fig.savefig(f'{savename}.pdf')
 
 
-def ani_trace(data: pd.DataFrame):
+def ani_trace(data: pd.DataFrame, savename: str = 'trace'):
     fig = plt.figure(dpi=800)
     ax = fig.add_subplot(projection='polar')
 
@@ -98,7 +115,7 @@ def ani_trace(data: pd.DataFrame):
     theta = theta.apply(np.deg2rad)
     r = 90 - r
 
-    line2 = ax.plot(theta[0], r[0], 'g', alpha=1)[0]
+    line2 = ax.plot(theta[0], r[0], color=cmap(values[0]), alpha=1)[0]
     ax.set_rmax(90)
     degree_sign = u'\N{DEGREE SIGN}'
     r_labels = [
@@ -127,7 +144,7 @@ def ani_trace(data: pd.DataFrame):
     ani = animation.FuncAnimation(fig=fig, func=update, frames=len(theta), interval=100, repeat=False)
 
     writer = animation.PillowWriter(fps=15)
-    ani.save('trace.gif', writer=writer)
+    ani.save(f'{savename}.gif', writer=writer)
     return full_data
 
 

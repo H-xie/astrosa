@@ -3,20 +3,10 @@ import sqlite3
 import unittest
 
 import astroplan
-import astropy.units as u
 import pandas as pd
-from astroplan import Observer
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
 
 from astrosa.assess import Assessor, Plan, Weather, Cloud
-
-location = EarthLocation(lat=43.82416667 * u.deg, lon=126.331111 * u.deg, height=313 * u.m)
-observer = Observer(location)
-observing_date = Time('2023-06-08')
-
-obs_start = observer.twilight_evening_astronomical(time=observing_date, which='next')
-obs_end = observer.twilight_morning_astronomical(time=obs_start, which='next')
+from utils import obs_start, obs_end
 
 
 class TestAssessor(unittest.TestCase):
