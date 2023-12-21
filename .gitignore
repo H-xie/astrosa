@@ -3,3 +3,5 @@ dist
 *.egg-info
 
 astrosa/version.py
+
+.idea

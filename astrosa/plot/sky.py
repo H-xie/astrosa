@@ -7,6 +7,7 @@ theta 是方向角 AZ, r 是高度角 ALT
 
 import astropy.units as u
 import astropy_healpix as ahp
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ values = [0, 1]
 color_set = plt.cm.viridis(np.linspace(0, 0.5, len(values)))
 cmap = ListedColormap(color_set)
 
+matplotlib.rcParams['font.size'] = 12
 
 def trace(data: pd.DataFrame, savename: str = 'trace'):
     fig = plt.figure()
@@ -85,7 +87,7 @@ def trace(data: pd.DataFrame, savename: str = 'trace'):
     ax.set_rgrids(range(0, 91, 15), r_labels)
 
     # create legend
-    ax.legend(['Exposure', 'Slew'], loc='upper right', fontsize=5)
+    ax.legend(['Exposure', 'Slew'], bbox_to_anchor=(1.2, 1.1), fontsize=12)
 
     fig.savefig(f'{savename}.svg')
     fig.savefig(f'{savename}.pdf')

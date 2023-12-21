@@ -102,7 +102,7 @@ class DewPoint(BaseWeatherData):
     pass
 
 
-class Humidity(BaseWeatherData):
+class RelativeHumidity(BaseWeatherData):
     pass
 
 
@@ -110,11 +110,43 @@ class Weather:
     """一个时刻的天气情况
     """
 
-    def __init__(self, cloud: Cloud):
+    def __init__(self, cloud: Cloud,
+                 temperature: Temperature=None,
+                 wind: Wind=None,
+                 dew_point: DewPoint=None,
+                 relative_humidity: RelativeHumidity=None):
         """cloud is in index of healpix_idx
         """
         self._cloud = cloud
+        self._temperature = temperature
+        self._wind = wind
+        self._dew_point = dew_point
+        self._relative_humidity = relative_humidity
 
     @property
     def cloud(self):
         return self._cloud
+
+    @property
+    def temperature(self):
+        if self._temperature is None:
+            raise ValueError("temperature is not set")
+        return self._temperature
+
+    @property
+    def wind(self):
+        if self._wind is None:
+            raise ValueError("wind is not set")
+        return self._wind
+
+    @property
+    def dew_point(self):
+        if self._dew_point is None:
+            raise ValueError("dew_point is not set")
+        return self._dew_point
+
+    @property
+    def humidity(self):
+        if self._relative_humidity is None:
+            raise ValueError("humidity is not set")
+        return self._relative_humidity
